@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  progress      WordProgress[]
+  dailyRecords  DailyRecord[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model LanguagePair {
+  id          String @id
+  sourceLang  String
+  targetLang  String
+  sourceName  String
+  targetName  String
+  levels      Level[]
+}
+
+model Level {
+  id          String  @id
+  name        String
+  nameHe      String
+  sourceLang  String  @default("hu")
+  targetLang  String  @default("he")
+  pairId      String?
+  pair        LanguagePair? @relation(fields: [pairId], references: [id])
+  topics      Topic[]
+}
+
+model Topic {
+  id      String @id
+  levelId  String
+  name    String
+  nameHe  String
+  level   Level  @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  words   Word[]
+
+  @@index([levelId])
+}
+
+model Word {
+  id         String         @id
+  topicId    String
+  sourceText String
+  targetText String
+  topic      Topic          @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  progress   WordProgress[]
+
+  @@index([topicId])
+}
+
+model WordProgress {
+  id           String   @id @default(cuid())
+  wordId       String
+  userId       String
+  status       String   @default("unknown")
+  lastReviewed BigInt   @default(0)
+  reviewCount  Int      @default(0)
+  nextReview   BigInt   @default(0)
+  word         Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([wordId, userId])
+  @@index([userId])
+}
+
+model DailyRecord {
+  id        String @id @default(cuid())
+  userId    String
+  date      String
+  count     Int    @default(0)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+}
