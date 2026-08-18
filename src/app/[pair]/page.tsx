@@ -1,6 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import { TopicsList } from '@/components/TopicsList';
 
+// Reads the DB per-request — must not be statically prerendered at build time.
+export const dynamic = 'force-dynamic';
+
 const FLAG_MAP: Record<string, string> = {
   hu: '🇭🇺', he: '🇮🇱', en: '🇬🇧', fr: '🇫🇷',
   de: '🇩🇪', es: '🇪🇸', it: '🇮🇹', ru: '🇷🇺',
