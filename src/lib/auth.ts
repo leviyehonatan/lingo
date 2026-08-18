@@ -5,6 +5,9 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import { prisma } from '@/lib/prisma';
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  // Self-hosted (non-Vercel) deployments must trust the incoming Host header,
+  // otherwise Auth.js rejects /api/auth/* with UntrustedHost.
+  trustHost: true,
   adapter: PrismaAdapter(prisma),
   providers: [
     Google({

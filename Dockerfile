@@ -31,6 +31,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/src/generated/prisma ./src/generated/prisma
+# Prisma 7 runtime (driver adapters + WASM query engine) is not fully traced by
+# Next.js standalone output; copy the complete @prisma scope from the build stage.
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 USER nextjs
 EXPOSE 3000
