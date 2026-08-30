@@ -12,6 +12,12 @@ on:
       - 'package-lock.json'
       - 'next.config.ts'
       - 'tsconfig.json'
+      # As of 2026-08-30 this workflow also ships the compose file and writes
+      # the .env, so changes to EITHER must trigger it. Without these two lines
+      # a compose change pushes cleanly, fires nothing, and leaves the box on
+      # the old file — which is exactly what happened the first time.
+      - 'deploy/**'
+      - '.github/workflows/deploy-lingo.yml'
   workflow_dispatch:
 
 jobs:
