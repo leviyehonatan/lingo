@@ -76,6 +76,16 @@ jobs:
             POSTGRES_DB=${POSTGRES_DB}
             EOF
             chmod 600 /srv/apps/lingo/.env
+            # A quoted heredoc delimiter silently disables expansion, producing a
+            # perfectly well-formed .env full of literal ${VAR} strings that
+            # authenticates nothing — and a deploy that reports success. Assert.
+            if grep -q '[$][{]' /srv/apps/lingo/.env; then
+              echo "::error::/srv/apps/lingo/.env has unexpanded dollar-brace placeholders — the heredoc delimiter is quoted, so values were never substituted"
+              exit 1
+            fi
+            n=$(grep -cE '^[A-Z0-9_]+=' /srv/apps/lingo/.env)
+            [ "$n" -ge 8 ] || {{ echo "::error::/srv/apps/lingo/.env has $n keys, expected >= 8"; exit 1; }}
+            echo "wrote /srv/apps/lingo/.env ($n keys, no unexpanded vars)"
 
       - name: Build & restart on server
         uses: appleboy/ssh-action@v1
