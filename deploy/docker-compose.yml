@@ -1,0 +1,103 @@
+# Lingo's production stack — app + its own postgres.
+#
+# Moved here from leviyehonatan/tun-ity-com on 2026-08-30; that repo now owns
+# only the edge (Traefik), the shared networks, backups and the box itself.
+#
+# THIS REPO IS PUBLIC. Nothing secret goes in this file — the app reads
+# /srv/apps/lingo/.env, which the deploy workflow writes from GitHub secrets.
+#
+# Deployed to /srv/apps/lingo/ by .github/workflows/deploy-lingo.yml. Traefik
+# reads routing from the LABELS below, off the RUNNING container, so a label
+# change does nothing until the container is recreated.
+#
+# proxy-net is created by the platform repo's deploy.sh. A compose referencing a
+# missing external network fails outright, so on a fresh box that bootstraps
+# first.
+
+services:
+  app:
+    # Build on the server (no GHCR) — source lives at ./src
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    image: lingo-app:latest
+    restart: unless-stopped
+    env_file: .env
+    # Next resolves $HOSTNAME (the container id) to a SINGLE ip and binds only
+    # there. With one network that was invisible; once this container joined
+    # both proxy-net and lingo-net it bound 172.22.0.3:3000 (lingo-net) and
+    # Traefik — which reaches it on proxy-net — got connection refused, i.e. a
+    # 502 from a perfectly healthy app that logged "Ready". Bind every
+    # interface. tunity does not need this only because its entrypoint already
+    # sets HOSTNAME=0.0.0.0.
+    environment:
+      HOSTNAME: "0.0.0.0"
+    expose: ["3000"]
+    # proxy-net so Traefik can route to it; lingo-net to reach Postgres.
+    networks: [proxy-net, lingo-net]
+    labels:
+      - "traefik.enable=true"
+      # REQUIRED once this container is on more than one network. Traefik
+      # otherwise has to guess which IP to route to, and picking the private
+      # one means it completes the TLS handshake and then hangs forever with
+      # no error logged — which is exactly what happened on 2026-08-30:
+      # :80 still 301'd (a redirect needs no backend) while :443 timed out
+      # with 0 bytes and the certificate was perfectly valid.
+      - "traefik.docker.network=proxy-net"
+      - "traefik.http.routers.lingo.rule=Host(`lingo.tun-ity.com`)"
+      - "traefik.http.routers.lingo.entrypoints=websecure"
+      - "traefik.http.routers.lingo.tls.certresolver=letsencrypt"
+      - "traefik.http.services.lingo.loadbalancer.server.port=3000"
+      - "traefik.http.routers.lingo-redirect.rule=Host(`lingo.tun-ity.com`)"
+      - "traefik.http.routers.lingo-redirect.entrypoints=web"
+      - "traefik.http.routers.lingo-redirect.middlewares=lingo-redirect"
+      - "traefik.http.middlewares.lingo-redirect.redirectscheme.scheme=https"
+
+  # This app's OWN postgres. Named `postgres` so it takes that network alias on
+  # this app's private network — which is why DATABASE_URL did not have to
+  # change: inside lingo-net, `postgres` means THIS instance, not the shared one.
+  # The shared instance moves off this network in the same commit, so the name
+  # can never resolve ambiguously.
+  #
+  # POSTGRES_USER/PASSWORD/DB come from the same .env as the app and were
+  # derived from DATABASE_URL, so the credentials already match.
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - lingopg:/var/lib/postgresql/data
+    networks: [lingo-net]
+    labels:
+      # Discovered by backup.sh — a new instance is backed up the moment it says
+      # so, with no list in the platform to keep in sync.
+      - "backup.enable=true"
+      - "backup.type=postgres"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+      target: builder
+    image: lingo-tools:latest
+    env_file: .env
+    command: npx prisma migrate deploy
+    profiles: ["db"]
+    # Was omitted, which put this on the compose project's DEFAULT network —
+    # where Postgres is not. It only runs on demand (profile `db`), so the
+    # breakage was latent rather than noticed.
+    networks: [lingo-net]
+
+volumes:
+  lingopg:
+
+networks:
+  proxy-net:
+    external: true
+  lingo-net:
+    external: true
