@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   editDistance,
   expectedVariants,
+  maskAnswer,
+  matchedWords,
   matchesAnyAlternative,
   matchesExpected,
   normalize,
@@ -139,5 +141,62 @@ describe('matchesAnyAlternative', () => {
 
   it('rejects an empty candidate list', () => {
     expect(matchesAnyAlternative([], 'köszönöm')).toBe(false);
+  });
+});
+
+describe('matchedWords', () => {
+  it('says which words of a phrase were heard', () => {
+    expect(matchedWords('jó estét', 'jó napot')).toEqual([
+      { word: 'jó', heard: true },
+      { word: 'napot', heard: false },
+    ]);
+  });
+
+  it('marks every word of an answer that landed', () => {
+    expect(matchedWords('jó napot', 'jó napot').every((match) => match.heard)).toBe(true);
+  });
+
+  it('does not let one spoken word cover two expected ones', () => {
+    expect(matchedWords('jó', 'jó jó')).toEqual([
+      { word: 'jó', heard: true },
+      { word: 'jó', heard: false },
+    ]);
+  });
+
+  it('forgives a near miss in a longer word, as the grader does', () => {
+    expect(matchedWords('köszonöm szépen', 'köszönöm szépen')).toEqual([
+      { word: 'köszönöm', heard: true },
+      { word: 'szépen', heard: true },
+    ]);
+  });
+
+  it('is unmoved by word order, which the whole-answer grade judges', () => {
+    expect(matchedWords('napot jó', 'jó napot').every((match) => match.heard)).toBe(true);
+  });
+
+  it('hears nothing in silence', () => {
+    expect(matchedWords('', 'jó napot').some((match) => match.heard)).toBe(false);
+  });
+});
+
+describe('maskAnswer', () => {
+  it('keeps the opening letters and hides the rest', () => {
+    expect(maskAnswer('köszönöm')).toBe('kös·····');
+  });
+
+  it('masks each word of a phrase separately', () => {
+    expect(maskAnswer('jó napot')).toBe('j· na···');
+  });
+
+  it('leaves a single letter alone, since there is nothing to hide', () => {
+    expect(maskAnswer('a')).toBe('a');
+  });
+
+  it('always shows at least one letter', () => {
+    expect(maskAnswer('igen', 0)).toBe('i···');
+  });
+
+  it('reveals more when asked to', () => {
+    expect(maskAnswer('köszönöm', 0.75)).toBe('köszön··');
   });
 });

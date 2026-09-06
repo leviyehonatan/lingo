@@ -85,6 +85,8 @@ the card, because racing past a miss is exactly the behaviour that made a wrong
 transcript cost a word its schedule.
 
 Without a microphone the toggle is not offered, and the session runs on buttons.
+A learner who can speak but would rather not says so with the silent switch, and
+gets the same button session for as long as it is on.
 
 ## Two skills, graded differently
 
