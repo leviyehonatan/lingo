@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  computeNextReview,
-  dayKey,
-  isDue,
-  isWordStatus,
-  reviewInterval,
-} from './progress';
+import { computeNextReview, dayKey, isDue, isWordStatus, nextStreak, reviewInterval } from './progress';
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -106,5 +100,40 @@ describe('dayKey', () => {
     expect(dayKey(Date.UTC(2026, 8, 6, 0, 0, 0))).toBe(
       dayKey(Date.UTC(2026, 8, 6, 23, 59, 59))
     );
+  });
+});
+
+describe('nextStreak', () => {
+  it('extends a run of recalls', () => {
+    expect(nextStreak(0, 'known')).toBe(1);
+    expect(nextStreak(3, 'known')).toBe(4);
+  });
+
+  it('ends the run on a miss, whatever the history', () => {
+    expect(nextStreak(9, 'unknown')).toBe(0);
+    expect(nextStreak(0, 'unknown')).toBe(0);
+  });
+
+  it('holds position for a half recall', () => {
+    expect(nextStreak(3, 'learning')).toBe(3);
+    // A word being met for the first time still starts its ladder.
+    expect(nextStreak(0, 'learning')).toBe(1);
+  });
+
+  it('ignores a nonsensical stored streak', () => {
+    expect(nextStreak(-4, 'known')).toBe(1);
+    expect(nextStreak(2.7, 'known')).toBe(3);
+  });
+});
+
+describe('a forgotten word starts its climb again', () => {
+  it('does not jump back to a long interval after a miss', () => {
+    // Eight successful reviews, then forgotten, then recalled once.
+    const afterMiss = nextStreak(8, 'unknown');
+    const afterRecall = nextStreak(afterMiss, 'known');
+
+    expect(reviewInterval('known', afterRecall)).toBe(DAY);
+    // Which is where it would have been on its very first recall.
+    expect(reviewInterval('known', 1)).toBe(DAY);
   });
 });

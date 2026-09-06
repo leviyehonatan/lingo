@@ -126,22 +126,19 @@ Honest gap list, so nobody assumes the app already implements the above.
 - **We have no sound-first stage at all.** No minimal-pair trainer, no recordings,
   no articulation help. The app currently starts where the book says to start
   second.
-- **Grading is a three-way status, not pass or fail with a reset.** A miss does
-  not send the word back to the shortest interval.
-- **Our ladder rung is driven by total review count, not by a streak.** A word
-  reviewed many times, then failed, jumps straight back to a long interval when
-  it next passes. See `src/lib/progress.ts`.
+- **Grading is a three-way status rather than pass or fail.** A miss now does
+  send the word back to the shortest interval; what remains is that there are
+  three grades where the method wants two.
 - **Words are ordered thematically by topic**, which is the interference pattern
   the book warns about, and there is no frequency ordering anywhere. Within a
   sitting the order is now due-first rather than arbitrary, but the pool a topic
   draws from is still a themed list.
-- **The intervals are still the same for everyone.** Words come back inside a
-  sitting now, but the ladder itself does not respond to how a learner is doing.
+- **The intervals are still the same for everyone.** A word's position now
+  follows its own run of recalls, but the rungs themselves are fixed and do not
+  respond to how a learner is doing overall.
 - **What is measured is not yet used.** Accuracy, answer times and lapses are
   recorded and shown, but nothing feeds them back into the intervals, so the
   schedule still cannot correct itself.
-- **Nothing enforces the short recall window.** The session times the answer now,
-  but does not hold the learner to five or ten seconds.
 
 Closed since this was written. A word the learner has never met is taught
 rather than tested, and the session decides its own contents instead of asking

@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { WordStatus } from '@/lib/progress';
 import type { FilterMode } from '@/lib/study';
 import { humanizeInterval } from '@/lib/interval';
+import { RECALL_WINDOW_MS, secondsLeft, windowState } from '@/lib/recall-window';
 import type { SessionPlan } from '@/lib/plan';
 import type { LearnerStats } from '@/lib/stats';
 import type {
@@ -491,9 +492,23 @@ export function GuidedCard({
    */
   const [missed, setMissed] = useState<SpokenResult | null>(null);
   const [attempts, setAttempts] = useState(0);
+
+  /**
+   * The recall window. It runs while the learner is being asked and nothing
+   * else is happening, and running out counts as a miss rather than a failure:
+   * the card stays, with the same choices a mishearing offers.
+   */
+  const [timedOut, setTimedOut] = useState(false);
+  const asking = stage === 'prompt' && card.mode === 'review';
+  useEffect(() => {
+    if (!asking || timedOut || missed) return;
+    const id = setTimeout(() => setTimedOut(true), RECALL_WINDOW_MS);
+    return () => clearTimeout(id);
+  }, [asking, timedOut, missed, card.id]);
   const spent = attempts >= MAX_SPOKEN_ATTEMPTS;
 
   const handleSpeak = (result: SpokenResult) => {
+    setTimedOut(false);
     setMissed(result.accepted ? null : result);
     if (!result.accepted) {
       const used = attempts + 1;
@@ -624,6 +639,41 @@ export function GuidedCard({
           </>
         )}
       </div>
+
+      {asking && <RecallCountdown cardId={card.id} stopped={timedOut || Boolean(missed)} />}
+
+      {asking && (
+        <div className="mt-4">
+        {timedOut && !missed && (
+          <div
+            data-time-up
+            className="rounded-xl border border-amber-700/50 bg-amber-900/10 p-3"
+          >
+            <p className="text-center text-xs text-amber-300">{t.timeUp}</p>
+            <p className="mt-1 text-center text-[0.7rem] text-slate-500">
+              {t.timeUpHint}
+            </p>
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              <button
+                data-miss-knew
+                onClick={() => onGrade('known')}
+                className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-emerald-300 transition hover:border-emerald-500"
+              >
+                {t.missKnew}
+              </button>
+              <button
+                data-miss-didnt
+                onClick={() => onGrade('unknown')}
+                className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-red-300 transition hover:border-red-500"
+              >
+                {t.missDidnt}
+              </button>
+            </div>
+          </div>
+        )}
+
+        </div>
+      )}
 
       {teaching && (
         <div className="mt-6 grid gap-3">
@@ -845,6 +895,39 @@ function Introduced({
       >
         {t.sessionNext}
       </button>
+    </div>
+  );
+}
+
+/**
+ * The last seconds of the recall window, drawn only once they are worth
+ * knowing about. Earlier than that it would rush a learner who is answering
+ * perfectly well.
+ */
+function RecallCountdown({ cardId, stopped }: { cardId: string; stopped: boolean }) {
+  const [startedAt] = useState(() => Date.now());
+  const [now, setNow] = useState(startedAt);
+
+  useEffect(() => {
+    if (stopped) return;
+    const id = setInterval(() => setNow(Date.now()), 200);
+    return () => clearInterval(id);
+  }, [stopped, cardId]);
+
+  const state = windowState(stopped ? null : startedAt, now);
+  if (!state.visible) return null;
+
+  return (
+    <div data-recall-window className="mt-4">
+      <div className="h-1 overflow-hidden rounded-full bg-slate-800">
+        <div
+          className="h-full bg-amber-500 transition-all duration-200"
+          style={{ width: `${Math.round(state.fraction * 100)}%` }}
+        />
+      </div>
+      <p className="mt-1 text-center text-[0.7rem] text-slate-500">
+        {t.windowHint(secondsLeft(state))}
+      </p>
     </div>
   );
 }

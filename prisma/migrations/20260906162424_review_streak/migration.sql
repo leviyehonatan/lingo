@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "WordProgress" ADD COLUMN     "previousStreak" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "streak" INTEGER NOT NULL DEFAULT 0;

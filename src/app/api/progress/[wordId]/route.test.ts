@@ -87,6 +87,8 @@ describe('PUT /api/progress/[wordId]', () => {
         reviewCount: 1,
         seenCount: 1,
         lapses: 0,
+        streak: 1,
+        previousStreak: 0,
         lastReviewed: BigInt(NOW),
         nextReview: BigInt(NOW + DAY),
       },
@@ -97,6 +99,8 @@ describe('PUT /api/progress/[wordId]', () => {
         reviewCount: 1,
         seenCount: 1,
         lapses: 0,
+        streak: 1,
+        previousStreak: 0,
         lastReviewed: BigInt(NOW),
         nextReview: BigInt(NOW + DAY),
       },
@@ -104,7 +108,7 @@ describe('PUT /api/progress/[wordId]', () => {
   });
 
   it('advances the ladder on a repeat review', async () => {
-    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1 });
+    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1, streak: 1 });
 
     const res = await put({ status: 'known' });
 
@@ -125,14 +129,21 @@ describe('PUT /api/progress/[wordId]', () => {
     await put({ status: 'learning' }, 'a1-colors-3');
     expect(prisma.wordProgress.findUnique).toHaveBeenCalledWith({
       where: { wordId_userId: { wordId: 'a1-colors-3', userId: 'user-1' } },
-      select: { reviewCount: true, seenCount: true, lapses: true, status: true },
+      select: {
+        reviewCount: true,
+        seenCount: true,
+        lapses: true,
+        status: true,
+        streak: true,
+        previousStreak: true,
+      },
     });
   });
 });
 
 describe('PUT /api/progress/[wordId] corrections', () => {
   it('re-grades the review just recorded instead of counting another', async () => {
-    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1 });
+    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1, streak: 1 });
     const res = await put({ status: 'known', correction: true });
     expect(res.status).toBe(200);
 
@@ -150,13 +161,13 @@ describe('PUT /api/progress/[wordId] corrections', () => {
   });
 
   it('still advances the ladder for a review that is not a correction', async () => {
-    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1 });
+    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1, streak: 1 });
     await put({ status: 'known' });
     expect(prisma.wordProgress.upsert.mock.calls[0][0].update.reviewCount).toBe(2);
   });
 
   it('ignores a correction flag that is not exactly true', async () => {
-    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1 });
+    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1, streak: 1 });
     await put({ status: 'known', correction: 'yes' });
     expect(prisma.wordProgress.upsert.mock.calls[0][0].update.reviewCount).toBe(2);
   });
@@ -252,5 +263,87 @@ describe('PUT /api/progress/[wordId] telemetry', () => {
 
     await put({ status: 'unknown', ...telemetry });
     expect(prisma.wordProgress.upsert.mock.calls[0][0].update.lapses).toBe(0);
+  });
+});
+
+describe('PUT /api/progress/[wordId] streaks', () => {
+  it('sends a forgotten word back to the bottom of its ladder', async () => {
+    // Long history, high up the ladder, and then forgotten.
+    prisma.wordProgress.findUnique.mockResolvedValue({
+      reviewCount: 9,
+      seenCount: 9,
+      lapses: 0,
+      status: 'known',
+      streak: 5,
+      previousStreak: 4,
+    });
+
+    await put({ status: 'unknown' });
+    const write = prisma.wordProgress.upsert.mock.calls[0][0];
+    expect(write.update.streak).toBe(0);
+    // The shortest rung, not the one nine reviews would once have bought.
+    expect(Number(write.update.nextReview) - NOW).toBe(60_000);
+  });
+
+  it('climbs again from the bottom after the miss', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({
+      reviewCount: 10,
+      seenCount: 10,
+      lapses: 1,
+      status: 'unknown',
+      streak: 0,
+      previousStreak: 4,
+    });
+
+    const res = await put({ status: 'known' });
+    expect(prisma.wordProgress.upsert.mock.calls[0][0].update.streak).toBe(1);
+    expect(await res.json()).toEqual({ nextReview: NOW + DAY });
+  });
+
+  it('holds position for a half recall', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({
+      reviewCount: 4,
+      seenCount: 4,
+      lapses: 0,
+      status: 'known',
+      streak: 3,
+      previousStreak: 2,
+    });
+
+    await put({ status: 'learning' });
+    expect(prisma.wordProgress.upsert.mock.calls[0][0].update.streak).toBe(3);
+  });
+
+  it('does not let a correction count as another success', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({
+      reviewCount: 3,
+      seenCount: 3,
+      lapses: 0,
+      status: 'known',
+      streak: 3,
+      previousStreak: 2,
+    });
+
+    await put({ status: 'known', correction: true });
+    // The answer being corrected already earned its place in the run.
+    expect(prisma.wordProgress.upsert.mock.calls[0][0].update.streak).toBe(3);
+  });
+
+  it('rebuilds the run a miss destroyed, when that miss is overturned', async () => {
+    // Answered wrong a moment ago: the streak was reset, but the run before it
+    // is remembered, and the correction is applied to that.
+    prisma.wordProgress.findUnique.mockResolvedValue({
+      reviewCount: 2,
+      seenCount: 2,
+      lapses: 1,
+      status: 'unknown',
+      streak: 0,
+      previousStreak: 1,
+    });
+
+    const res = await put({ status: 'known', correction: true });
+    const write = prisma.wordProgress.upsert.mock.calls[0][0];
+    expect(write.update.streak).toBe(2);
+    expect(await res.json()).toEqual({ nextReview: NOW + 3 * DAY });
   });
 });
