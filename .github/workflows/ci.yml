@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Lets deploy-lingo.yml run this as a `needs:` gate before touching the server.
+  workflow_call:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      # src/generated/prisma is gitignored; every `@/generated/prisma` import
+      # fails to resolve without it. `prisma generate` needs no DATABASE_URL.
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      # `npm run typecheck` runs `next typegen` first: it writes the global
+      # route helpers (LayoutProps, PageProps, RouteContext) that tsc needs and
+      # that are otherwise only produced by `next dev` / `next build`.
+      - name: Typecheck
+        run: npm run typecheck

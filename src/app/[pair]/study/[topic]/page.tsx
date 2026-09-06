@@ -624,7 +624,7 @@ function Flashcard({
               : 'bg-red-900/30 text-red-400 hover:bg-red-900/50'
           }`}
         >
-          Don't know ❌ (1)
+          Don&apos;t know ❌ (1)
         </button>
         <button
           onClick={() => onMark('learning')}

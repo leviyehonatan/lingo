@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { TopicsList } from '@/components/TopicsList';
 
@@ -48,7 +49,7 @@ export default async function PairPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
       <div className="mx-auto max-w-2xl px-4 py-8">
-        <a href="/" className="text-sm text-slate-400 hover:text-slate-200 mb-6 inline-block">🔙 חזרה</a>
+        <Link href="/" className="text-sm text-slate-400 hover:text-slate-200 mb-6 inline-block">🔙 חזרה</Link>
 
         {pairInfo && (
           <div className="text-center mb-8">
