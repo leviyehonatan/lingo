@@ -134,6 +134,26 @@ Hungarian is on screen: always while teaching, and on the prompt side of a
 forward review. Ears before mouth, as the method puts it, and it never plays a
 side the learner is supposed to be recalling.
 
+### D6 — Hands-free, and a miss is not a failure (2026-09-06)
+
+Three corrections to the spoken path, all from watching it used.
+
+**A misheard answer no longer fails the card.** Recognition is unreliable enough
+that a miss is not evidence of forgetting, so nothing is recorded: the card says
+what it heard and waits for another go, or for the learner to say whether they
+knew it. Silence is treated the same way.
+
+**Teaching asks for a repetition.** Reading a word aloud and letting the learner
+click past it teaches nothing, so the microphone is the primary action on a new
+word and a good repetition is what moves it on.
+
+**Hands-free mode.** The app speaks, waits, listens and advances on its own. See
+[`voice-mode.md`](voice-mode.md).
+
+The grade buttons were also relabelled. They were named after the internal
+statuses, so a learner had to think in the app's vocabulary to answer a question
+about their own memory; they now read as the answer to the question asked.
+
 ## Proposed, not yet decided
 
 ### P1 — Pass or fail with a reset, instead of a three-way status

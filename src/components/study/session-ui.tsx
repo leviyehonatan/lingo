@@ -8,7 +8,7 @@
  * fifteen controls at once and never said which of them the moment called for.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { WordStatus } from '@/lib/progress';
 import type { FilterMode } from '@/lib/study';
 import { humanizeInterval } from '@/lib/interval';
@@ -78,6 +78,9 @@ export function SessionSetup({
   todayCount,
   dailyGoal,
   sessionSize,
+  canListen,
+  handsFree,
+  onHandsFreeChange,
   onStart,
   onReset,
 }: {
@@ -95,6 +98,9 @@ export function SessionSetup({
   todayCount: number;
   dailyGoal: number;
   sessionSize: number;
+  canListen: boolean;
+  handsFree: boolean;
+  onHandsFreeChange: (on: boolean) => void;
   onStart: () => void;
   onReset: () => void;
 }) {
@@ -153,6 +159,26 @@ export function SessionSetup({
             <p className="mt-3 text-xs text-slate-500">
               {direction === 'forward' ? t.directionForward : t.directionReverse}
             </p>
+            {canListen && (
+              <label
+                data-hands-free
+                className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-700 p-3"
+              >
+                <input
+                  type="checkbox"
+                  data-hands-free-toggle
+                  checked={handsFree}
+                  onChange={(e) => onHandsFreeChange(e.target.checked)}
+                  className="mt-0.5 accent-indigo-600"
+                />
+                <span>
+                  <span className="block text-sm font-medium">{t.handsFree}</span>
+                  <span className="block text-xs text-slate-400">
+                    {t.handsFreeHint}
+                  </span>
+                </span>
+              </label>
+            )}
             <button
               data-session-start
               onClick={onStart}
@@ -352,6 +378,7 @@ export function GuidedCard({
   heard,
   direction,
   canListen,
+  handsFree,
   onSpeak,
   onSpeakPractice,
   onHear,
@@ -368,6 +395,8 @@ export function GuidedCard({
   heard: SessionAttempt | undefined;
   direction: Direction;
   canListen: boolean;
+  /** Listen without being asked, and move on once the learner has spoken. */
+  handsFree: boolean;
   onSpeak: (result: SpokenResult) => void;
   onSpeakPractice: (result: SpokenResult) => void;
   /** Say the Hungarian aloud. */
@@ -410,10 +439,28 @@ export function GuidedCard({
   // something to imitate rather than guessing from the spelling. Only when the
   // Hungarian is already on screen, so a review never leaks its own answer.
   const hungarianOnScreen = promptHu || card.mode === 'teach';
+  const saidThisCard = useRef<string | null>(null);
   useEffect(() => {
+    // Once per card. React runs effects twice in development, which is what
+    // made the word play twice over itself with no gap.
+    if (saidThisCard.current === card.id) return;
+    saidThisCard.current = card.id;
     if (hungarianOnScreen && stage === 'prompt') onHear();
-    // Once per card: replaying on every render would talk over the learner.
-  }, [card.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [card.id, hungarianOnScreen, stage, onHear]);
+
+  /**
+   * How long to wait before opening the microphone on its own: long enough for
+   * the app to finish saying the word, and to leave a beat of silence after it
+   * so the learner is not talking over a voice.
+   */
+  const autoListenDelay = handsFree ? (hungarianOnScreen ? 1800 : 600) : null;
+
+  // Hands-free means the verdict is read, not clicked past.
+  useEffect(() => {
+    if (!handsFree || stage !== 'feedback') return;
+    const id = setTimeout(onNext, 2200);
+    return () => clearTimeout(id);
+  }, [handsFree, stage, onNext, card.id]);
   const task = teaching
     ? t.teachTask
     : stage === 'prompt'
@@ -488,6 +535,7 @@ export function GuidedCard({
                 hint={t.teachRepeatHint}
                 graded
                 dataAttr="data-teach-repeat"
+                autoStartDelayMs={repeated ? null : autoListenDelay}
                 onResult={handleRepeat}
               />
               {repeated && !repeated.accepted && (
@@ -527,6 +575,7 @@ export function GuidedCard({
                 hint={t.speakAnswerHint}
                 graded
                 dataAttr="data-speak-answer"
+                autoStartDelayMs={missed ? null : autoListenDelay}
                 onResult={handleSpeak}
               />
 

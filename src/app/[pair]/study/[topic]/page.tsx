@@ -68,6 +68,17 @@ import {
 } from '@/components/study/modes';
 import { he as t } from '@/i18n/translations';
 
+const HANDS_FREE_KEY = 'lingo-hands-free';
+
+/** The stored preference, or off when there is nowhere to have stored it. */
+function readHandsFree(): boolean {
+  try {
+    return typeof window !== 'undefined' && localStorage.getItem(HANDS_FREE_KEY) === 'on';
+  } catch {
+    return false;
+  }
+}
+
 /** Whether the browser can hear is fixed for the life of the page. */
 const NEVER_CHANGES = () => () => {};
 
@@ -134,6 +145,17 @@ function StudyPageInner() {
     speechAvailable,
     () => false
   );
+
+  // Hands-free: the app speaks, listens and moves on without being clicked.
+  // Remembered per browser, since it is a way of working rather than a setting
+  // for one session.
+  const [handsFree, setHandsFree] = useState(readHandsFree);
+  const toggleHandsFree = useCallback((on: boolean) => {
+    setHandsFree(on);
+    try {
+      localStorage.setItem(HANDS_FREE_KEY, on ? 'on' : 'off');
+    } catch {}
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -455,6 +477,9 @@ function StudyPageInner() {
           todayCount={progress.todayCount}
           dailyGoal={DAILY_GOAL}
           sessionSize={SESSION_SIZE}
+          canListen={canListen}
+          handsFree={handsFree}
+          onHandsFreeChange={toggleHandsFree}
           onStart={beginSession}
           onReset={handleReset}
         />
@@ -513,6 +538,7 @@ function StudyPageInner() {
           heard={attemptsFor(session, card.id, 'recall').at(-1)}
           direction={direction}
           canListen={canListen}
+          handsFree={handsFree && canListen}
           onSpeak={handleSpoken}
           onSpeakPractice={handlePractice}
           onHear={speak}

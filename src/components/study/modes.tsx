@@ -332,6 +332,7 @@ export function SpeakButton({
   hint,
   graded,
   dataAttr,
+  autoStartDelayMs = null,
   onResult,
 }: {
   expectedText: string;
@@ -340,6 +341,12 @@ export function SpeakButton({
   hint: string;
   graded: boolean;
   dataAttr: string;
+  /**
+   * Start listening on its own after this long, for hands-free study. Null
+   * leaves it waiting to be pressed. The delay is what keeps the microphone
+   * from opening while the app is still speaking.
+   */
+  autoStartDelayMs?: number | null;
   onResult: (result: SpokenResult) => void;
 }) {
   const { state, partial, error, start, stop } = useListening({
@@ -347,6 +354,12 @@ export function SpeakButton({
     lang,
     onResult,
   });
+
+  useEffect(() => {
+    if (autoStartDelayMs === null) return;
+    const id = setTimeout(start, autoStartDelayMs);
+    return () => clearTimeout(id);
+  }, [autoStartDelayMs, start]);
 
   const listening = state === 'listening';
   const attrs: Record<string, string> = { [dataAttr]: 'true' };

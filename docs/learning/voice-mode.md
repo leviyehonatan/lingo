@@ -73,6 +73,18 @@ without speaking stays available, and is the only path on a browser that cannot
 hear. What follows says the word was added and when it returns, with no grade
 and no correction row, because nothing was asked.
 
+## Hands-free
+
+Turned on from the setup screen and remembered per browser. The app reads the
+word, waits a beat so it is not talking over the learner, opens the microphone
+itself, and moves on once it has heard them. Nothing is clicked.
+
+It stops on its own where stopping is the point: after a mishearing it stays on
+the card, because racing past a miss is exactly the behaviour that made a wrong
+transcript cost a word its schedule.
+
+Without a microphone the toggle is not offered, and the session runs on buttons.
+
 ## Two skills, graded differently
 
 Reading aloud a word that is on screen tests pronunciation. Recalling its
