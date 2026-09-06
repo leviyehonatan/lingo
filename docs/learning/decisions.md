@@ -313,6 +313,39 @@ makes the daily goal reachable.
 suggests what to check, and offers to continue without speaking, rather than
 only recording a failure.
 
+### D15 — The schedule reads what the log records (2026-09-06)
+
+P6. The ladder was the same for every word: what was measured went into the log
+and never came back out. Two signals now bend it, both named by the method. A
+word that keeps being forgotten comes back sooner, each lapse cutting the wait
+and never below a floor. A recall that arrives in under a couple of seconds
+stretches it, because an answer that quick says the interval was too short. The
+result is clamped to the ladder it belongs to: the signals nudge the schedule,
+they do not replace it.
+
+Only a recall can be effortless. Answering "I did not know it" quickly says
+nothing about the interval and is read as nothing.
+
+### D16 — Words that look alike are not met on the same day (2026-09-06)
+
+Half of P5, the half that needs no new data. The method is blunt that learning
+six and seven together, or green and yellow, makes them stick to each other
+instead of to their meanings, and our words are grouped by topic, which is
+exactly the arrangement that produces those pairs. The plan now skips a new word
+that is too similar to one already chosen for the sitting, judged on both sides
+since a pair can collide in what is shown or in what has to be produced. If
+everything left clashes it introduces one anyway: a sitting with nothing new is
+worse than a lookalike. Reviews are never held back, only introductions.
+
+Frequency ordering, the other half of P5, still needs data we do not have.
+
+### D17 — The server reports the wait, not just the moment (2026-09-06)
+
+The verdict worked out "back in a day" by subtracting the browser's clock from
+the server's timestamp. A device whose clock is off by hours would have shown
+nonsense, and a test that controls the page clock did show it. The write route
+now returns the delay it chose alongside the moment, and the session carries it.
+
 ## Proposed, not yet decided
 
 ### P1 — Collapse the three grades into pass and fail
@@ -334,17 +367,9 @@ on.
 The method's first stage, which we skip entirely. Needs audio assets. See the
 ear-training section of [`voice-mode.md`](voice-mode.md).
 
-### P5 — Frequency-based ordering, and breaking up thematic sets
+### P5 — Frequency ordering
 
-Our words are grouped by topic, which puts easily confused items in the same
-session. The method orders by frequency and deliberately scatters related words.
-This is a data change to `src/data`, plus a way to order a deck that is not
-topic order.
-
-### P6 — Use what is now being measured
-
-The log records latency, source and lapses; nothing reads them back into the
-schedule yet. The obvious first uses: treat a word with lapses as harder and
-shorten its ladder, and treat a very fast answer as a signal the interval was
-too short, which is the one thing the method says a third grade should mean.
+Confusable words are now kept apart (D16). What remains is ordering by how often
+a word is actually used, which needs frequency data for Hungarian that we do not
+have.
 

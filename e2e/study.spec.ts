@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test';
 import { TOPIC_ID } from './fixtures';
 import { disableSpeech } from './speech';
 import {
+  answerAtHumanSpeed,
+  useTestClock,
   endSession,
   openSetup,
   progress,
@@ -26,6 +28,7 @@ test.describe('study session', () => {
   test.beforeEach(async ({ page }) => {
     await page.request.delete('/api/progress');
     await disableSpeech(page);
+    await useTestClock(page);
   });
 
   test('names the topic before anything is asked', async ({ page }) => {
@@ -72,6 +75,7 @@ test.describe('study session', () => {
     expect(await promptWord(page)).toBe(word.hungarian);
 
     const before = Date.now();
+    await answerAtHumanSpeed(page);
     await page.locator('[data-session-reveal]').click();
     await page.locator('[data-grade="known"]').click();
 
@@ -98,6 +102,7 @@ test.describe('study session', () => {
     await openSetup(page);
     await startDeck(page, 'known');
 
+    await answerAtHumanSpeed(page);
     await page.locator('[data-session-reveal]').click();
     await page.locator('[data-grade="known"]').click();
     await expect.poll(async () => (await progress(page)).progress[0]?.review_count).toBe(2);
@@ -106,6 +111,7 @@ test.describe('study session', () => {
     await startDeck(page, 'known');
     await expect(page.locator('[data-session-position]')).toHaveText('0 מתוך 1 מילים');
 
+    await answerAtHumanSpeed(page);
     await page.locator('[data-session-reveal]').click();
     await page.locator('[data-grade="known"]').click();
     await expect.poll(async () => (await progress(page)).progress[0]?.review_count).toBe(3);
@@ -135,9 +141,11 @@ test.describe('study session', () => {
 
     const { progress: rows } = await progress(page);
     // Two reviews in total: the seeded one and this one. The correction is not
-    // a third, so the word stays on the rung it earned.
+    // a third, so the word stays on the rung it earned, shortened because the
+    // word has now lapsed once.
     expect(rows[0].review_count).toBe(2);
-    expect(rows[0].next_review - rows[0].last_reviewed).toBe(3 * DAY);
+    expect(rows[0].next_review - rows[0].last_reviewed).toBeLessThan(3 * DAY);
+    expect(rows[0].next_review - rows[0].last_reviewed).toBeGreaterThan(2 * DAY);
 
     // The card did not move underneath the learner.
     expect(await promptWord(page)).toBe(shown);
@@ -161,6 +169,7 @@ test.describe('study session', () => {
     await openSetup(page);
     await startDeck(page, 'known');
 
+    await answerAtHumanSpeed(page);
     await page.locator('[data-session-reveal]').click();
     await page.locator('[data-grade="known"]').click();
     await expect(page.locator('[data-verdict-interval]')).toBeVisible();

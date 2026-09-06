@@ -54,11 +54,22 @@ export interface SessionCard {
   mode: CardMode;
 }
 
+/** What the server decided about a word, as it reported it. */
+export interface Schedule {
+  nextReview: number;
+  intervalMs: number;
+}
+
 export interface SessionAnswer {
   cardId: string;
   status: WordStatus;
   /** When the server says the word comes back. Null if the write failed. */
   nextReview: number | null;
+  /**
+   * How long that wait is, as the server measured it. Kept separately because
+   * the browser's clock cannot be trusted to subtract from the server's.
+   */
+  intervalMs: number | null;
   /** When the learner answered, so the delay can be described without a clock. */
   answeredAt: number;
   /** True when the learner overturned the first verdict. */
@@ -119,7 +130,7 @@ export function revealAnswer(state: SessionState): SessionState {
 export function recordAnswer(
   state: SessionState,
   status: WordStatus,
-  nextReview: number | null,
+  schedule: Schedule | null,
   now: number
 ): SessionState {
   const card = currentCard(state);
@@ -129,7 +140,14 @@ export function recordAnswer(
     stage: 'feedback',
     answers: [
       ...state.answers,
-      { cardId: card.id, status, nextReview, answeredAt: now, corrected: false },
+      {
+        cardId: card.id,
+        status,
+        nextReview: schedule?.nextReview ?? null,
+        intervalMs: schedule?.intervalMs ?? null,
+        answeredAt: now,
+        corrected: false,
+      },
     ],
   };
   return requeue(answered, status);
@@ -163,13 +181,20 @@ function requeue(state: SessionState, status: WordStatus): SessionState {
 export function attachSchedule(
   state: SessionState,
   cardId: string,
-  nextReview: number | null
+  schedule: Schedule | null
 ): SessionState {
   const previous = state.answers[state.answers.length - 1];
   if (!previous || previous.cardId !== cardId) return state;
   return {
     ...state,
-    answers: [...state.answers.slice(0, -1), { ...previous, nextReview }],
+    answers: [
+      ...state.answers.slice(0, -1),
+      {
+        ...previous,
+        nextReview: schedule?.nextReview ?? null,
+        intervalMs: schedule?.intervalMs ?? null,
+      },
+    ],
   };
 }
 
@@ -180,7 +205,7 @@ export function attachSchedule(
 export function correctAnswer(
   state: SessionState,
   status: WordStatus,
-  nextReview: number | null,
+  schedule: Schedule | null,
   now: number
 ): SessionState {
   if (state.stage !== 'feedback' || state.answers.length === 0) return state;
@@ -190,7 +215,14 @@ export function correctAnswer(
     ...state,
     answers: [
       ...answers,
-      { ...previous, status, nextReview, answeredAt: now, corrected: true },
+      {
+        ...previous,
+        status,
+        nextReview: schedule?.nextReview ?? null,
+        intervalMs: schedule?.intervalMs ?? null,
+        answeredAt: now,
+        corrected: true,
+      },
     ],
   };
 }
@@ -288,10 +320,9 @@ export interface SessionSummary {
   /** Cards the learner practised pronouncing, whatever the outcome. */
   pronounced: number;
   /**
-   * How long until the soonest word from this session comes back, measured
-   * from when it was answered. Null when nothing was graded, or when every
-   * write failed. A delay rather than a timestamp, so the summary can be
-   * rendered without reading the clock.
+   * How long until the soonest word from this session comes back, as the
+   * server measured it. Null when nothing was graded, or when every write
+   * failed.
    */
   soonestDelay: number | null;
 }
@@ -326,10 +357,11 @@ export function summarize(state: SessionState): SessionSummary {
   for (const answer of state.answers) {
     summary[answer.status]++;
     if (answer.corrected) summary.corrected++;
-    if (answer.nextReview !== null) {
-      const delay = answer.nextReview - answer.answeredAt;
+    if (answer.intervalMs !== null) {
       summary.soonestDelay =
-        summary.soonestDelay === null ? delay : Math.min(summary.soonestDelay, delay);
+        summary.soonestDelay === null
+          ? answer.intervalMs
+          : Math.min(summary.soonestDelay, answer.intervalMs);
     }
   }
   return summary;

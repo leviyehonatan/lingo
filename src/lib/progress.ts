@@ -36,16 +36,68 @@ export function isWordStatus(value: unknown): value is WordStatus {
 }
 
 /**
+ * What the log knows about a word beyond the grade just given.
+ *
+ * The ladder is the same for every word and every learner, which is the last
+ * thing the schedule cannot adapt. These two signals are the ones the method
+ * names: a word that keeps being forgotten is harder than its rung says, and an
+ * answer that arrives instantly says the wait was too short.
+ */
+export interface ReviewSignals {
+  /** Times this word has been forgotten after being known. */
+  lapses?: number;
+  /** How long the answer took, when it was measured. */
+  latencyMs?: number | null;
+}
+
+/** Each lapse shortens the wait by this much, compounding. */
+const LAPSE_PENALTY = 0.75;
+
+/** However often a word has been forgotten, it keeps this share of its wait. */
+const MIN_LAPSE_FACTOR = 0.4;
+
+/**
+ * An answer this quick was not recalled so much as still in mind, which the
+ * method reads as the interval having been too short.
+ */
+const EFFORTLESS_MS = 2_500;
+
+/** How much an effortless recall stretches the wait. */
+const EFFORTLESS_BONUS = 1.3;
+
+/**
+ * How the signals change a wait. Separated from the ladder so the adjustment
+ * can be reasoned about, and tested, on its own.
+ */
+export function difficultyFactor(status: WordStatus, signals: ReviewSignals = {}): number {
+  const lapses = Math.max(0, Math.floor(signals.lapses ?? 0));
+  const penalty = Math.max(MIN_LAPSE_FACTOR, LAPSE_PENALTY ** lapses);
+  const latency = signals.latencyMs;
+  // Only a recall can be effortless. Answering "I did not know it" quickly says
+  // nothing about the interval.
+  const effortless =
+    status === 'known' && typeof latency === 'number' && latency >= 0 && latency < EFFORTLESS_MS;
+  return penalty * (effortless ? EFFORTLESS_BONUS : 1);
+}
+
+/**
  * How long to wait before showing this word again.
  *
  * `streak` is the run of successes *including* the answer being recorded, so a
  * word recalled for the first time has a streak of 1 and lands on rung 0.
  * Streaks below 1 clamp to the first rung, streaks past the end repeat the last.
  */
-export function reviewInterval(status: WordStatus, streak: number): number {
+export function reviewInterval(
+  status: WordStatus,
+  streak: number,
+  signals: ReviewSignals = {}
+): number {
   const ladder = LADDERS[status];
   const rung = Math.min(Math.max(Math.floor(streak) - 1, 0), ladder.length - 1);
-  return ladder[rung];
+  const adjusted = Math.round(ladder[rung] * difficultyFactor(status, signals));
+  // Never shorter than the ladder's first rung, and never past its last: the
+  // signals nudge the schedule, they do not replace it.
+  return Math.min(Math.max(adjusted, ladder[0]), ladder[ladder.length - 1]);
 }
 
 /**
@@ -68,9 +120,10 @@ export function nextStreak(previous: number, status: WordStatus): number {
 export function computeNextReview(
   status: WordStatus,
   streak: number,
-  now: number
+  now: number,
+  signals: ReviewSignals = {}
 ): number {
-  return now + reviewInterval(status, streak);
+  return now + reviewInterval(status, streak, signals);
 }
 
 /** A word with no recorded review at all is due; otherwise compare the clock. */

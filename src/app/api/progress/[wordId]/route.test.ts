@@ -74,7 +74,7 @@ describe('PUT /api/progress/[wordId]', () => {
   it('answers with the computed next review, not with anything the client sent', async () => {
     const res = await put({ status: 'known', nextReview: 42 });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ nextReview: NOW + DAY });
+    expect(await res.json()).toEqual({ nextReview: NOW + DAY, intervalMs: DAY });
   });
 
   it('stores the first review with a count of one and the server clock', async () => {
@@ -112,7 +112,10 @@ describe('PUT /api/progress/[wordId]', () => {
 
     const res = await put({ status: 'known' });
 
-    expect(await res.json()).toEqual({ nextReview: NOW + 3 * DAY });
+    expect(await res.json()).toEqual({
+      nextReview: NOW + 3 * DAY,
+      intervalMs: 3 * DAY,
+    });
     expect(prisma.wordProgress.upsert).toHaveBeenCalledWith(
       expect.objectContaining({ update: expect.objectContaining({ reviewCount: 2 }) })
     );
@@ -297,7 +300,7 @@ describe('PUT /api/progress/[wordId] streaks', () => {
 
     const res = await put({ status: 'known' });
     expect(prisma.wordProgress.upsert.mock.calls[0][0].update.streak).toBe(1);
-    expect(await res.json()).toEqual({ nextReview: NOW + DAY });
+    expect(await res.json()).toEqual({ nextReview: NOW + DAY, intervalMs: DAY });
   });
 
   it('holds position for a half recall', async () => {
@@ -344,6 +347,86 @@ describe('PUT /api/progress/[wordId] streaks', () => {
     const res = await put({ status: 'known', correction: true });
     const write = prisma.wordProgress.upsert.mock.calls[0][0];
     expect(write.update.streak).toBe(2);
-    expect(await res.json()).toEqual({ nextReview: NOW + 3 * DAY });
+    // Rung two of the known ladder, shortened because the word has lapsed once.
+    const { nextReview } = await res.json();
+    expect(nextReview - NOW).toBe(Math.round(3 * DAY * 0.75));
+  });
+});
+
+describe('PUT /api/progress/[wordId] adapts to what the log knows', () => {
+  const telemetry = { direction: 'forward', mode: 'review', source: 'speech' };
+
+  it('brings a repeatedly forgotten word back sooner than its rung says', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({
+      reviewCount: 6,
+      seenCount: 6,
+      lapses: 2,
+      status: 'learning',
+      streak: 2,
+      previousStreak: 1,
+    });
+
+    const res = await put({ status: 'known', ...telemetry, latencyMs: 6000 });
+    const { nextReview } = await res.json();
+    // Three recalls in a row reaches rung three, a week; two lapses cut it back
+    // towards the rung below.
+    expect(nextReview - NOW).toBeLessThan(7 * DAY);
+    expect(nextReview - NOW).toBeGreaterThan(3 * DAY);
+  });
+
+  it('waits longer when the answer came instantly', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({
+      reviewCount: 2,
+      seenCount: 2,
+      lapses: 0,
+      status: 'known',
+      streak: 1,
+      previousStreak: 0,
+    });
+
+    const res = await put({ status: 'known', ...telemetry, latencyMs: 700 });
+    const { nextReview } = await res.json();
+    expect(nextReview - NOW).toBeGreaterThan(3 * DAY);
+  });
+
+  it('reads nothing into speed when the learner did not recall it', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({
+      reviewCount: 2,
+      seenCount: 2,
+      lapses: 0,
+      status: 'known',
+      streak: 1,
+      previousStreak: 0,
+    });
+
+    const res = await put({ status: 'unknown', ...telemetry, latencyMs: 300 });
+    const { nextReview } = await res.json();
+    expect(nextReview - NOW).toBe(60_000);
+  });
+
+  it('schedules a review with no telemetry from the ladder alone', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({
+      reviewCount: 1,
+      seenCount: 1,
+      lapses: 0,
+      status: 'known',
+      streak: 1,
+      previousStreak: 0,
+    });
+
+    const res = await put({ status: 'known' });
+    expect((await res.json()).nextReview - NOW).toBe(3 * DAY);
+  });
+});
+
+describe('PUT /api/progress/[wordId] reports the wait it chose', () => {
+  it('answers with the delay as well as the moment', async () => {
+    const res = await put({ status: 'known' });
+    const body = await res.json();
+
+    // The browser's clock may be well off the server's, so the delay is not
+    // something the client should be working out for itself.
+    expect(body.intervalMs).toBe(DAY);
+    expect(body.nextReview - body.intervalMs).toBe(NOW);
   });
 });

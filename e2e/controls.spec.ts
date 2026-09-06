@@ -161,3 +161,24 @@ test('shows which words of a spoken answer landed', async ({ page }) => {
     .poll(async () => (await progress(page)).progress[0]?.status)
     .toBe('unknown');
 });
+
+test('an instant recall waits longer than a considered one', async ({ page }) => {
+  const [word] = await words(page, TOPIC_ID);
+  await seedWord(page, word.id, 'known');
+
+  await openOptions(page);
+  await page.locator('[data-deck="known"]').click();
+  await page.locator('[data-session-start]').click();
+
+  // Answered the moment it appeared, which the schedule reads as the wait
+  // having been too short.
+  await page.locator('[data-speak-answer]').click();
+  await say(page, word.hebrew);
+  await expect(page.locator('[data-verdict-interval]')).toBeVisible();
+
+  const { progress: rows } = await progress(page);
+  // Rung two is three days; an effortless recall stretches it.
+  expect(rows[0].next_review - rows[0].last_reviewed).toBeGreaterThan(
+    3 * 24 * 60 * 60 * 1000
+  );
+});

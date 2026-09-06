@@ -86,16 +86,23 @@ export async function PUT(
   const runBefore = correction ? (existing?.previousStreak ?? 0) : (existing?.streak ?? 0);
   const streak = nextStreak(runBefore, status);
   const previousStreak = runBefore;
-  const nextReview = computeNextReview(status, streak, now);
+  // A lapse is judged against the status being replaced: a word the learner
+  // had known, coming back unknown.
+  const lapses = (existing?.lapses ?? 0) + (isLapse(existing?.status, status) ? 1 : 0);
+  const telemetry = parseTelemetry(body);
+  // The schedule reads what the log has been collecting: a word that keeps
+  // being forgotten comes back sooner, and a recall that arrived instantly
+  // waits longer, which is what the method says an effortless answer means.
+  const nextReview = computeNextReview(status, streak, now, {
+    lapses,
+    latencyMs: telemetry?.latencyMs ?? null,
+  });
 
   // A correction re-grades a card the learner has already been shown, so it is
-  // not another sighting. A lapse is judged against the status being replaced.
+  // not another sighting.
   const seenCount = correction
     ? Math.max(existing?.seenCount ?? 0, 1)
     : (existing?.seenCount ?? 0) + 1;
-  const lapses = (existing?.lapses ?? 0) + (isLapse(existing?.status, status) ? 1 : 0);
-
-  const telemetry = parseTelemetry(body);
 
   await prisma.$transaction([
     prisma.wordProgress.upsert({
@@ -145,6 +152,6 @@ export async function PUT(
       : []),
   ]);
 
-  const response: UpdateProgressResponse = { nextReview };
+  const response: UpdateProgressResponse = { nextReview, intervalMs: nextReview - now };
   return NextResponse.json(response);
 }

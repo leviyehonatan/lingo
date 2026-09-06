@@ -38,6 +38,7 @@ import type { ReviewSource } from '@/lib/telemetry';
 import type { LevelData, ProgressData } from '@/lib/api';
 import { computeStats, filterWordIds, shuffle } from '@/lib/study';
 import { modeFor, planSession } from '@/lib/plan';
+import { similarity, normalize } from '@/lib/answer-match';
 import type { FilterMode } from '@/lib/study';
 import type { WordStatus } from '@/lib/progress';
 import {
@@ -54,6 +55,7 @@ import {
   sessionProgress,
   startSession,
   summarize,
+  type Schedule,
   type SessionCard,
   type SessionState,
 } from '@/lib/session';
@@ -215,6 +217,7 @@ function StudyPageInner() {
   );
 
   const wordIds = useMemo(() => words.map((w) => w.id), [words]);
+  const byId = useMemo(() => new Map(words.map((word) => [word.id, word])), [words]);
 
   // Read only by the setup screen, which is never on screen mid-session.
   const deckCounts = useMemo(() => {
@@ -232,6 +235,24 @@ function StudyPageInner() {
 
   /* ------------------------------------------------------------- session */
 
+  /**
+   * Whether two words are too alike to meet on the same day. Judged on both
+   * sides, since a pair can collide either in what is shown or in what has to
+   * be produced, and it is the collision that does the damage.
+   */
+  const confusable = useCallback(
+    (a: string, b: string) => {
+      const first = byId.get(a);
+      const second = byId.get(b);
+      if (!first || !second) return false;
+      return (
+        similarity(normalize(first.hungarian), normalize(second.hungarian)) >= 0.6 ||
+        similarity(normalize(first.hebrew), normalize(second.hebrew)) >= 0.6
+      );
+    },
+    [byId]
+  );
+
   /** The recommended sitting: what is due, then a few new words. */
   const plan = useMemo(
     () =>
@@ -241,13 +262,20 @@ function StudyPageInner() {
         now,
         newLimit: preferences.newPerSession,
         size: preferences.sessionSize,
+        confusable,
       }),
-    [wordIds, progress.byWord, now, preferences.newPerSession, preferences.sessionSize]
+    [
+      wordIds,
+      progress.byWord,
+      now,
+      preferences.newPerSession,
+      preferences.sessionSize,
+      confusable,
+    ]
   );
 
   const buildCards = useCallback((): SessionCard[] => {
     const promptHu = promptIsHungarian(direction);
-    const byId = new Map(words.map((w) => [w.id, w]));
     const toCard = (id: string, mode: 'teach' | 'review'): SessionCard | null => {
       const word = byId.get(id);
       if (!word) return null;
@@ -279,7 +307,16 @@ function StudyPageInner() {
     return chosen
       .map((planned) => toCard(planned.id, planned.mode))
       .filter((card): card is SessionCard => card !== null);
-  }, [words, wordIds, progress.byWord, deck, direction, plan, preferences.sessionSize]);
+  }, [
+    byId,
+    words,
+    wordIds,
+    progress.byWord,
+    deck,
+    direction,
+    plan,
+    preferences.sessionSize,
+  ]);
 
   const beginSession = useCallback(() => {
     setSession(startSession(buildCards()));
@@ -313,7 +350,7 @@ function StudyPageInner() {
       status: WordStatus,
       correction = false,
       source: ReviewSource = 'buttons'
-    ): Promise<number | null> => {
+    ): Promise<Schedule | null> => {
       const shown = showing.current;
       const onThisCard = shown?.cardId === wordId ? shown : null;
       try {
@@ -331,7 +368,7 @@ function StudyPageInner() {
             [wordId]: { status, nextReview: result.nextReview },
           },
         }));
-        return result.nextReview;
+        return result;
       } catch {
         return null;
       }
@@ -352,11 +389,11 @@ function StudyPageInner() {
       // The verdict appears at once; the schedule it names arrives with the
       // server's answer, so a slow write never blocks the session.
       setSession((prev) => (prev ? recordAnswer(prev, status, null, Date.now()) : prev));
-      const [nextReview] = await Promise.all([
+      const [schedule] = await Promise.all([
         writeProgress(card.id, status, false, source),
         countToday(),
       ]);
-      setSession((prev) => (prev ? attachSchedule(prev, card.id, nextReview) : prev));
+      setSession((prev) => (prev ? attachSchedule(prev, card.id, schedule) : prev));
     },
     [card, writeProgress, countToday]
   );
@@ -365,8 +402,8 @@ function StudyPageInner() {
     async (status: WordStatus) => {
       if (!card) return;
       setSession((prev) => (prev ? correctAnswer(prev, status, null, Date.now()) : prev));
-      const nextReview = await writeProgress(card.id, status, true, 'buttons');
-      setSession((prev) => (prev ? attachSchedule(prev, card.id, nextReview) : prev));
+      const schedule = await writeProgress(card.id, status, true, 'buttons');
+      setSession((prev) => (prev ? attachSchedule(prev, card.id, schedule) : prev));
     },
     [card, writeProgress]
   );
