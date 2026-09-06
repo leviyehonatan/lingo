@@ -165,6 +165,17 @@ The confirmation after meeting a word shows the pair once more, and hands-free
 holds it longer than a review verdict, because that panel is the last look at
 the meaning before the word is asked for.
 
+### D8 — One spoken action per card (2026-09-06)
+
+A review card offered two microphones: say the answer, or practise saying the
+word already on screen. That asked the learner to choose what they were
+practising before they could answer, and in hands-free it was ambiguous which
+one the app had opened. Practising a word on screen is what meeting a word is
+for, so it now lives only there, and a review card has exactly one thing to say.
+
+An open microphone also says what it wants for as long as it is open, naming the
+language and whether it expects the word or the meaning.
+
 ## Proposed, not yet decided
 
 ### P1 — Pass or fail with a reset, instead of a three-way status

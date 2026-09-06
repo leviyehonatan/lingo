@@ -46,32 +46,24 @@ machine with the languages parameterized, never two machines.
 
 ## What the learner can do, and what it costs
 
-Speaking now drives the session rather than sitting beside it. Every action on a
-card says its consequence before it is taken.
+One card asks for one thing. Offering a choice between saying the word and
+saying its meaning made the learner decide what they were practising before they
+could answer, which is a decision they are not in a position to make.
 
-| Action | Listens in | Effect |
+| Card | The one spoken action | Effect |
 | --- | --- | --- |
-| Say the answer | the answer's language | The graded recall. A match grades it known. A miss grades nothing: it says what it heard and waits, because recognition is wrong often enough that a miss is not evidence of forgetting. |
-| Practise the sound | Hungarian | Nothing. Recorded as an attempt, never touches the schedule. Offered only when the Hungarian is the side on screen, since saying a word already shown is mouth practice, not recall. |
-| Show the answer | — | An admission. Records the card as not known, overturnable in the next click. |
-| Next | — | Only exists once a verdict does. |
+| A word being met | Repeat it in Hungarian, after the app says it | Records an attempt. A good repetition moves the card on. |
+| A word being reviewed | Say the answer, in the answer's language | The graded recall. A match grades it known; a miss grades nothing and waits. |
 
-That third row is what makes the demonstration active. While revealing was free
+Alongside it a card offers only escapes, never alternatives: show the answer,
+which is an admission and records the word as not known, and after a miss the
+choice between having known it and not. Next exists only once a verdict does.
+
+That admission is what makes the demonstration active. While revealing was free
 and ungraded, nothing obliged the learner to try.
 
 The three grade buttons did not disappear. They are the manual path for a
 browser that cannot hear, and the correction row on every verdict.
-
-Silence is treated like any other miss: the card says it heard nothing and waits.
-Nothing is recorded until the learner says what happened, either by saying the
-word again or by choosing between "I knew it, it misheard me" and "I didn't know
-it".
-
-Teaching is its own step, not a grade. A new word is read aloud, the learner
-repeats it, and a good repetition is what moves the card on. Clicking past it
-without speaking stays available, and is the only path on a browser that cannot
-hear. What follows says the word was added and when it returns, with no grade
-and no correction row, because nothing was asked.
 
 ## Saying which language
 
@@ -79,6 +71,10 @@ Nothing on a card should leave the learner guessing which language is wanted.
 Both sides carry their language, the hidden side says whether it holds the word
 or the meaning, and the task line names the language it is asking for: say the
 meaning in Hebrew, or say the word in Hungarian, swapping with the direction.
+
+The microphone says it too, and says it while it matters. An open microphone
+does not show a generic recording state; it shows what to say, in which
+language, for the whole time it is listening.
 
 ## Hands-free
 

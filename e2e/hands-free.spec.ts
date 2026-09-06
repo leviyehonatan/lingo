@@ -67,10 +67,18 @@ test('opens the microphone on its own, after it has finished speaking', async ({
   await page.locator('[data-session-start]').click();
 
   // It waits: the word is read first, and the microphone opens after a beat.
-  await expect(page.locator('[data-teach-repeat]')).not.toContainText('מקליט');
-  await expect(page.locator('[data-teach-repeat]')).toContainText('מקליט', {
-    timeout: 5000,
-  });
+  await expect(page.locator('[data-teach-repeat]')).not.toHaveAttribute(
+    'data-listening',
+    'true'
+  );
+  await expect(page.locator('[data-teach-repeat]')).toHaveAttribute(
+    'data-listening',
+    'true',
+    { timeout: 5000 }
+  );
+  await expect(page.locator('[data-teach-repeat]')).toContainText(
+    'חזרו על המילה בהונגרית'
+  );
 });
 
 test('a spoken answer carries the session forward without a click', async ({ page }) => {
@@ -86,9 +94,11 @@ test('a spoken answer carries the session forward without a click', async ({ pag
   const first = (await page.locator('[data-card-prompt]').innerText()).trim();
   const answer = seeded.find((w) => w.hungarian === first)!.hebrew;
 
-  await expect(page.locator('[data-speak-answer]')).toContainText('מקליט', {
-    timeout: 5000,
-  });
+  await expect(page.locator('[data-speak-answer]')).toHaveAttribute(
+    'data-listening',
+    'true',
+    { timeout: 5000 }
+  );
   await say(page, answer);
 
   // Graded, and then carried on to the next card with nothing clicked.
@@ -111,9 +121,11 @@ test('stays put after a mishearing, rather than racing on', async ({ page }) => 
   await page.locator('[data-deck="known"]').click();
   await page.locator('[data-session-start]').click();
 
-  await expect(page.locator('[data-speak-answer]')).toContainText('מקליט', {
-    timeout: 5000,
-  });
+  await expect(page.locator('[data-speak-answer]')).toHaveAttribute(
+    'data-listening',
+    'true',
+    { timeout: 5000 }
+  );
   await say(page, 'משהו אחר');
 
   await expect(page.locator('[data-speak-missed]')).toBeVisible();

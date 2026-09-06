@@ -332,6 +332,7 @@ export function SpeakButton({
   hint,
   graded,
   dataAttr,
+  listeningLabel,
   autoStartDelayMs = null,
   onResult,
 }: {
@@ -339,6 +340,11 @@ export function SpeakButton({
   lang: string;
   label: string;
   hint: string;
+  /**
+   * What the learner should say, shown while the microphone is open. A card
+   * asks for one thing, and this is where it says which.
+   */
+  listeningLabel: string;
   graded: boolean;
   dataAttr: string;
   /**
@@ -368,18 +374,19 @@ export function SpeakButton({
     <div className="flex flex-col items-center gap-1">
       <button
         {...attrs}
+        data-listening={listening ? 'true' : undefined}
         onClick={listening ? stop : start}
-        className={`w-full rounded-xl px-5 py-3 text-sm font-medium transition ${
+        className={`w-full rounded-xl px-5 py-4 text-base font-semibold transition ${
           listening
-            ? 'animate-pulse bg-red-600 text-white'
+            ? 'animate-pulse border-2 border-red-400 bg-red-600 text-white'
             : graded
               ? 'bg-indigo-600 text-white hover:bg-indigo-500'
               : 'border border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500'
         }`}
       >
-        <span className="block">{listening ? t.voiceRecording : label}</span>
-        <span className="mt-0.5 block text-xs font-normal opacity-70">
-          {listening ? t.voiceListeningMsg : hint}
+        <span className="block">{listening ? listeningLabel : label}</span>
+        <span className="mt-1 block text-xs font-normal opacity-80">
+          {listening ? t.listeningNow : hint}
         </span>
       </button>
       {partial && (

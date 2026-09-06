@@ -53,8 +53,12 @@ test('the card asks to be answered aloud before it shows anything', async ({ pag
   await startSession(page);
   await expect(page.locator('[data-teach-badge]')).toHaveCount(0);
   await expect(page.locator('[data-session-task]')).toHaveText('אמרו בקול את המשמעות בעברית');
+  // Exactly one thing to say, so there is no choice to get wrong.
   await expect(page.locator('[data-speak-answer]')).toBeVisible();
-  await expect(page.locator('[data-speak-practice]')).toBeVisible();
+  await expect(page.locator('[data-speak-practice]')).toHaveCount(0);
+  await expect(page.locator('[data-speak-answer]')).toContainText(
+    'אמירת המשמעות בעברית'
+  );
   // Nothing is graded and nothing is revealed until the learner acts.
   await expect(page.locator('[data-card-answer]')).toHaveCount(0);
   expect(await progressRows(page)).toHaveLength(1);
@@ -143,18 +147,14 @@ test('silence offers another go rather than failing the card', async ({ page }) 
   );
 });
 
-test('pronunciation practice never touches the schedule', async ({ page }) => {
+test('while listening it says which language it wants', async ({ page }) => {
   await startSession(page);
-  const shown = (await page.locator('[data-card-prompt]').innerText()).trim();
+  await page.locator('[data-speak-answer]').click();
 
-  await page.locator('[data-speak-practice]').click();
-  await say(page, shown);
-
-  // Still being asked, nothing graded, nothing written.
-  await expect(page.locator('[data-session-task]')).toHaveText('אמרו בקול את המשמעות בעברית');
-  await expect(page.locator('[data-verdict]')).toHaveCount(0);
-  await page.waitForTimeout(300);
-  expect((await progressRows(page))[0].review_count).toBe(1);
+  const button = page.locator('[data-speak-answer]');
+  await expect(button).toHaveAttribute('data-listening', 'true');
+  await expect(button).toContainText('אמרו את המשמעות בעברית');
+  await expect(button).toContainText('מקשיב');
 });
 
 test('asking for the answer admits you did not know it', async ({ page }) => {

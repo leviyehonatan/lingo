@@ -549,6 +549,7 @@ export function GuidedCard({
                 lang="hu-HU"
                 label={t.teachRepeatHu}
                 hint={t.teachRepeatHint}
+                listeningLabel={t.listeningRepeat}
                 graded
                 dataAttr="data-teach-repeat"
                 autoStartDelayMs={repeated ? null : autoListenDelay}
@@ -589,6 +590,7 @@ export function GuidedCard({
                 lang={promptHu ? 'he-IL' : 'hu-HU'}
                 label={answerIsHebrew ? t.speakMeaningHe : t.speakWordHu}
                 hint={t.speakAnswerHint}
+                listeningLabel={answerIsHebrew ? t.listeningMeaning : t.listeningWord}
                 graded
                 dataAttr="data-speak-answer"
                 autoStartDelayMs={missed ? null : autoListenDelay}
@@ -623,19 +625,6 @@ export function GuidedCard({
                     </button>
                   </div>
                 </div>
-              )}
-              {/* Saying the word already on screen practises the mouth only, and
-                  only makes sense for the language being learned. */}
-              {promptHu && (
-                <SpeakButton
-                  expectedText={card.prompt}
-                  lang="hu-HU"
-                  label={t.speakPractice}
-                  hint={t.speakPracticeHint}
-                  graded={false}
-                  dataAttr="data-speak-practice"
-                  onResult={onSpeakPractice}
-                />
               )}
             </>
           ) : (
