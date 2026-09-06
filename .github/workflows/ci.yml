@@ -36,3 +36,8 @@ jobs:
       # that are otherwise only produced by `next dev` / `next build`.
       - name: Typecheck
         run: npm run typecheck
+
+      # Unit tests only. The Playwright suite in e2e/ needs a real Postgres and
+      # is run locally; see the Testing section of the README.
+      - name: Unit tests
+        run: npm test

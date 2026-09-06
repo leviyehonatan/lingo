@@ -10,9 +10,10 @@ import {
   resetProgress,
 } from '@/lib/api';
 import type { LevelData, ProgressData } from '@/lib/api';
+import { computeStats, filterWordIds, shuffle } from '@/lib/study';
+import type { FilterMode } from '@/lib/study';
+import type { WordStatus } from '@/lib/progress';
 
-type WordStatus = 'known' | 'unknown' | 'learning';
-type FilterMode = 'all' | 'unknown' | 'learning' | 'known' | 'due';
 type StudyMode = 'flashcards' | 'quiz' | 'writing';
 
 interface Word {
@@ -33,24 +34,6 @@ try {
 } catch {}
 
 const DAILY_GOAL = sDailyGoal;
-
-function shuffleWords(arr: readonly Word[]): Word[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-function shuffleOptions(arr: string[]): string[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 function useNow(intervalMs: number) {
   const [now, setNow] = useState(() => Date.now());
@@ -138,30 +121,16 @@ function StudyPageInner() {
 
   const wordIds = useMemo(() => words.map((w) => w.id), [words]);
 
-  const dueWordIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const id of wordIds) {
-      const p = progress.byWord[id];
-      if (!p || p.nextReview <= now) ids.add(id);
-    }
-    return ids;
-  }, [wordIds, progress.byWord, now]);
-
   const getStatus = useCallback(
     (wordId: string): WordStatus | undefined =>
       progress.byWord[wordId]?.status,
     [progress.byWord]
   );
 
-  const filteredWordIds = useMemo(() => {
-    return wordIds.filter((id) => {
-      if (filter === 'all') return true;
-      if (filter === 'due') return dueWordIds.has(id);
-      const status = getStatus(id);
-      if (filter === 'unknown') return !status;
-      return status === filter;
-    });
-  }, [wordIds, filter, getStatus, dueWordIds]);
+  const filteredWordIds = useMemo(
+    () => filterWordIds(wordIds, progress.byWord, filter, now),
+    [wordIds, progress.byWord, filter, now]
+  );
 
   const filteredWords = useMemo(
     () => words.filter((w) => filteredWordIds.includes(w.id)),
@@ -169,28 +138,16 @@ function StudyPageInner() {
   );
 
   useEffect(() => {
-    // shuffleWords is impure (Math.random), so we defer the setState
+    // shuffle is impure (Math.random), so we defer the setState
     queueMicrotask(() => {
-      setShuffled(shuffleWords(filteredWords));
+      setShuffled(shuffle(filteredWords));
     });
   }, [filteredWords]);
 
-  const stats = useMemo(() => {
-    let known = 0;
-    let learning = 0;
-    let unknown = 0;
-    for (const id of wordIds) {
-      const p = progress.byWord[id];
-      if (!p || p.status === 'unknown' || p.nextReview <= now) {
-        unknown++;
-      } else if (p.status === 'learning') {
-        learning++;
-      } else if (p.status === 'known') {
-        known++;
-      }
-    }
-    return { known, learning, unknown };
-  }, [wordIds, progress.byWord, now]);
+  const stats = useMemo(
+    () => computeStats(wordIds, progress.byWord, now),
+    [wordIds, progress.byWord, now]
+  );
 
   const currentWord = shuffled[currentIndex];
   const total = shuffled.length;
@@ -362,7 +319,7 @@ function StudyPageInner() {
             ← Back
           </button>
           <div className="flex-1">
-            <h2 className="text-sm font-medium">{topic.name_he}</h2>
+            <h2 className="text-sm font-medium">{topic.nameHe}</h2>
             <p className="text-xs text-slate-400">{currentPairLabel}</p>
           </div>
           <div className="text-sm font-mono text-slate-400">
@@ -676,11 +633,11 @@ function QuizMode({
     // shuffle functions are impure (Math.random), so defer setState
     queueMicrotask(() => {
       const others = words.filter((w) => w.id !== currentWord.id);
-      const shuffledOthers = shuffleWords(others);
+      const shuffledOthers = shuffle(others);
       const distractors = shuffledOthers
         .slice(0, 3)
         .map((w) => (reverse ? w.hungarian : w.hebrew));
-      setOptions(shuffleOptions([...distractors, answer]));
+      setOptions(shuffle([...distractors, answer]));
     });
   }, [currentWord.id, answer, words, reverse]);
 

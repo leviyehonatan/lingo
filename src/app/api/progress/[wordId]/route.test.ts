@@ -1,0 +1,122 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const auth = vi.fn();
+const prisma = {
+  wordProgress: { findUnique: vi.fn(), upsert: vi.fn() },
+};
+
+vi.mock('@/lib/auth', () => ({ auth: () => auth() }));
+vi.mock('@/lib/prisma', () => ({ prisma }));
+
+const { PUT } = await import('./route');
+
+const USER = { user: { id: 'user-1' } };
+const NOW = 1_700_000_000_000;
+const DAY = 24 * 60 * 60 * 1000;
+
+function request(body: unknown, raw?: string) {
+  return new Request('http://localhost/api/progress/w1', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: raw ?? JSON.stringify(body),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }) as any;
+}
+
+const ctx = (wordId = 'w1') => ({ params: Promise.resolve({ wordId }) });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const put = (body: unknown, wordId?: string) => PUT(request(body), ctx(wordId) as any);
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+  auth.mockResolvedValue(USER);
+  prisma.wordProgress.findUnique.mockResolvedValue(null);
+  prisma.wordProgress.upsert.mockResolvedValue({});
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe('PUT /api/progress/[wordId]', () => {
+  it('rejects an anonymous request', async () => {
+    auth.mockResolvedValue(null);
+    expect((await put({ status: 'known' })).status).toBe(401);
+    expect(prisma.wordProgress.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unrecognised status', async () => {
+    const res = await put({ status: 'mastered' });
+    expect(res.status).toBe(400);
+    expect(prisma.wordProgress.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects a body with no status at all', async () => {
+    expect((await put({})).status).toBe(400);
+  });
+
+  it('rejects a malformed body instead of throwing', async () => {
+    const res = await PUT(
+      request(null, 'not json'),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ctx() as any
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('answers with the computed next review, not with anything the client sent', async () => {
+    const res = await put({ status: 'known', nextReview: 42 });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ nextReview: NOW + DAY });
+  });
+
+  it('stores the first review with a count of one and the server clock', async () => {
+    await put({ status: 'known' });
+
+    expect(prisma.wordProgress.upsert).toHaveBeenCalledWith({
+      where: { wordId_userId: { wordId: 'w1', userId: 'user-1' } },
+      update: {
+        status: 'known',
+        reviewCount: 1,
+        lastReviewed: BigInt(NOW),
+        nextReview: BigInt(NOW + DAY),
+      },
+      create: {
+        wordId: 'w1',
+        userId: 'user-1',
+        status: 'known',
+        reviewCount: 1,
+        lastReviewed: BigInt(NOW),
+        nextReview: BigInt(NOW + DAY),
+      },
+    });
+  });
+
+  it('advances the ladder on a repeat review', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1 });
+
+    const res = await put({ status: 'known' });
+
+    expect(await res.json()).toEqual({ nextReview: NOW + 3 * DAY });
+    expect(prisma.wordProgress.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ update: expect.objectContaining({ reviewCount: 2 }) })
+    );
+  });
+
+  it('schedules an unknown word for another try within the session', async () => {
+    const res = await put({ status: 'unknown' });
+    const { nextReview } = await res.json();
+    expect(nextReview).toBeGreaterThan(NOW);
+    expect(nextReview).toBeLessThan(NOW + 60 * 60 * 1000);
+  });
+
+  it('scopes the lookup to the signed-in user and the routed word', async () => {
+    await put({ status: 'learning' }, 'a1-colors-3');
+    expect(prisma.wordProgress.findUnique).toHaveBeenCalledWith({
+      where: { wordId_userId: { wordId: 'a1-colors-3', userId: 'user-1' } },
+      select: { reviewCount: true },
+    });
+  });
+});

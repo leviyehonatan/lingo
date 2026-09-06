@@ -1,0 +1,66 @@
+/**
+ * Pure spaced-repetition logic. No I/O, no Prisma, no Next.
+ *
+ * The server is the only place that decides when a word is next due: the
+ * client sends a status, the server answers with `nextReview`.
+ */
+
+export type WordStatus = 'known' | 'unknown' | 'learning';
+
+const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
+
+/**
+ * Interval ladder in milliseconds, indexed by how many times the word has been
+ * reviewed. A word answered correctly again and again climbs its ladder; the
+ * last rung repeats forever.
+ */
+const LADDERS: Record<WordStatus, readonly number[]> = {
+  // Wrong or not yet learned: come back within the same session.
+  unknown: [MINUTE, 2 * MINUTE, 5 * MINUTE, 10 * MINUTE],
+  // Partly known: hours, then a day or two.
+  learning: [10 * MINUTE, HOUR, 6 * HOUR, DAY, 2 * DAY],
+  // Known: the classic expanding schedule.
+  known: [DAY, 3 * DAY, 7 * DAY, 14 * DAY, 30 * DAY, 90 * DAY],
+};
+
+export const VALID_STATUSES: readonly WordStatus[] = ['known', 'unknown', 'learning'];
+
+export function isWordStatus(value: unknown): value is WordStatus {
+  return typeof value === 'string' && (VALID_STATUSES as readonly string[]).includes(value);
+}
+
+/**
+ * How long to wait before showing this word again.
+ *
+ * `reviewCount` is the number of reviews *including* the one being recorded,
+ * so the first review of a word is `reviewCount === 1` and lands on rung 0.
+ * Counts below 1 clamp to the first rung, counts past the end repeat the last.
+ */
+export function reviewInterval(status: WordStatus, reviewCount: number): number {
+  const ladder = LADDERS[status];
+  const rung = Math.min(Math.max(Math.floor(reviewCount) - 1, 0), ladder.length - 1);
+  return ladder[rung];
+}
+
+/**
+ * Absolute epoch-millisecond timestamp at which the word becomes due again.
+ */
+export function computeNextReview(
+  status: WordStatus,
+  reviewCount: number,
+  now: number
+): number {
+  return now + reviewInterval(status, reviewCount);
+}
+
+/** A word with no recorded review at all is due; otherwise compare the clock. */
+export function isDue(nextReview: number | undefined, now: number): boolean {
+  return nextReview === undefined || nextReview <= now;
+}
+
+/** `YYYY-MM-DD` in UTC, the key used by the DailyRecord table. */
+export function dayKey(now: number): string {
+  return new Date(now).toISOString().slice(0, 10);
+}
