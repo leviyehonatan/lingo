@@ -130,6 +130,12 @@ advances the interval ladder. The recognizer is not the last word on a failure.
 
 ## Platform reality
 
+**Decided: we rely on Chrome for listening.** No polyfill, no server-side
+recognition, no second implementation to keep working. The spoken path is the
+better one and it is what Chrome and Edge users get; everyone else gets the
+button session, which is a complete way to study rather than a stub, and is told
+which browsers can hear so the limitation is theirs to act on.
+
 - The Web Speech API is Chrome and Edge only, and in Chrome the audio is sent to
   Google's servers. Safari and Firefox need the tap-and-type fallback.
 - Hebrew recognition is weaker than Hungarian, and unvocalized script makes

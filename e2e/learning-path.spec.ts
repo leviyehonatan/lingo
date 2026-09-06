@@ -122,7 +122,11 @@ test('says the Hungarian aloud when it is on screen, and never leaks an answer',
       configurable: true,
       value: {
         cancel() {},
-        getVoices: () => [],
+        // A device with a Hungarian voice: without one the app stays silent
+        // rather than reading Hungarian in another accent.
+        getVoices: () => [{ name: 'Tünde', lang: 'hu-HU', localService: true }],
+        addEventListener() {},
+        removeEventListener() {},
         speak(utterance: { text: string }) {
           (window as never as { __spoke: (t: string) => void }).__spoke(utterance.text);
         },

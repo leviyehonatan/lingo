@@ -25,7 +25,11 @@ async function recordPlayback(page: Page) {
       configurable: true,
       value: {
         cancel() {},
-        getVoices: () => [],
+        // A device with a Hungarian voice: without one the app stays silent
+        // rather than reading Hungarian in another accent.
+        getVoices: () => [{ name: 'Tünde', lang: 'hu-HU', localService: true }],
+        addEventListener() {},
+        removeEventListener() {},
         speak(utterance: { text: string }) {
           (window as never as { __spokenLog: string[] }).__spokenLog.push(utterance.text);
         },

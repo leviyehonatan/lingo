@@ -34,6 +34,7 @@ import {
   writePreferences,
   type Preferences,
 } from '@/lib/preferences';
+import { clampRate, hasHungarianVoice, pickHungarianVoice } from '@/lib/speech-voice';
 import type { ReviewSource } from '@/lib/telemetry';
 import type { LevelData, ProgressData } from '@/lib/api';
 import { computeStats, filterWordIds, shuffle } from '@/lib/study';
@@ -79,6 +80,21 @@ import { he as t } from '@/i18n/translations';
 
 /** Whether the browser can hear is fixed for the life of the page. */
 const NEVER_CHANGES = () => () => {};
+
+/** Chrome fills its voice list after the page loads, and says so by this event. */
+function subscribeToVoices(onChange: () => void): () => void {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return () => {};
+  speechSynthesis.addEventListener?.('voiceschanged', onChange);
+  return () => speechSynthesis.removeEventListener?.('voiceschanged', onChange);
+}
+
+function readHungarianVoice(): boolean {
+  try {
+    return hasHungarianVoice(speechSynthesis.getVoices?.() ?? []);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * A clock that ticks, so the counts on the setup screen stay current while it
@@ -132,6 +148,16 @@ function StudyPageInner() {
   const canListen = useSyncExternalStore(
     NEVER_CHANGES,
     speechAvailable,
+    () => false
+  );
+
+  /**
+   * Whether the device can say Hungarian at all. Voices arrive asynchronously
+   * in some browsers, so this subscribes rather than reading once.
+   */
+  const canSpeakHungarian = useSyncExternalStore(
+    subscribeToVoices,
+    readHungarianVoice,
     () => false
   );
 
@@ -462,10 +488,14 @@ function StudyPageInner() {
   /**
    * Speak the Hungarian side of the card, whichever side that is.
    *
-   * Chrome drops an utterance queued in the same tick as a cancel, which is
-   * what made the replay button do nothing the second time, so the two are
-   * separated. A Hungarian voice is picked when the system has one; without it
-   * the browser reads Hungarian with whatever default it has.
+   * Nothing is said unless the device has a Hungarian voice. A browser asked
+   * for a language it cannot speak does not refuse; it reads the text in some
+   * other accent, which teaches the wrong sound to a learner who is meant to be
+   * imitating it.
+   *
+   * Chrome also drops an utterance queued in the same tick as a cancel, which
+   * is what made the replay button do nothing the second time, so the two are
+   * separated.
    */
   const speak = useCallback(() => {
     if (!card) return;
@@ -476,18 +506,17 @@ function StudyPageInner() {
         // The timer runs outside the try above, and playback is a nicety: a
         // browser that cannot do it must not take the session down with it.
         try {
+          const voice = pickHungarianVoice(speechSynthesis.getVoices?.() ?? []);
+          if (!voice) return;
           const utterance = new SpeechSynthesisUtterance(hungarian);
-          utterance.lang = 'hu-HU';
-          utterance.rate = 0.85;
-          const voice = speechSynthesis
-            .getVoices?.()
-            ?.find((candidate) => candidate.lang.toLowerCase().startsWith('hu'));
-          if (voice) utterance.voice = voice;
+          utterance.lang = voice.lang;
+          utterance.voice = voice;
+          utterance.rate = clampRate(preferences.speechRate);
           speechSynthesis.speak(utterance);
         } catch {}
       }, 0);
     } catch {}
-  }, [card, direction]);
+  }, [card, direction, preferences.speechRate]);
 
   const handleReset = useCallback(async () => {
     try {
@@ -555,6 +584,7 @@ function StudyPageInner() {
           dailyGoal={DAILY_GOAL}
           sessionSize={preferences.sessionSize}
           canListen={canListen}
+          canSpeakHungarian={canSpeakHungarian}
           preferences={preferences}
           onPreferencesChange={updatePreferences}
           stats={learnerStats}

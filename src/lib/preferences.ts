@@ -8,6 +8,7 @@
  */
 
 import { DEFAULT_THRESHOLD } from './answer-match';
+import { DEFAULT_SPEECH_RATE, SPEECH_RATES, type SpeechRate } from './speech-voice';
 
 export const STRICTNESS_LEVELS = ['easy', 'normal', 'strict'] as const;
 export type Strictness = (typeof STRICTNESS_LEVELS)[number];
@@ -31,6 +32,8 @@ export interface Preferences {
   sessionSize: number;
   /** New words one sitting may introduce. */
   newPerSession: number;
+  /** How fast the app says a Hungarian word. */
+  speechRate: SpeechRate;
 }
 
 export const SESSION_SIZES = [5, 10, 20, 40] as const;
@@ -41,6 +44,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   strictness: 'normal',
   sessionSize: 20,
   newPerSession: 5,
+  speechRate: DEFAULT_SPEECH_RATE,
 };
 
 const KEY = 'lingo-preferences';
@@ -70,6 +74,9 @@ export function parsePreferences(raw: unknown): Preferences {
       Number.isFinite(fresh) && fresh >= 0 && fresh <= 20
         ? Math.round(fresh)
         : DEFAULT_PREFERENCES.newPerSession,
+    speechRate: (SPEECH_RATES as readonly number[]).includes(Number(stored.speechRate))
+      ? (Number(stored.speechRate) as SpeechRate)
+      : DEFAULT_PREFERENCES.speechRate,
   };
 }
 

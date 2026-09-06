@@ -14,6 +14,7 @@ describe('parsePreferences', () => {
         strictness: 'strict',
         sessionSize: 10,
         newPerSession: 3,
+        speechRate: 0.6,
       })
     ).toEqual({
       handsFree: true,
@@ -21,6 +22,7 @@ describe('parsePreferences', () => {
       strictness: 'strict',
       sessionSize: 10,
       newPerSession: 3,
+      speechRate: 0.6,
     });
   });
 
@@ -51,5 +53,13 @@ describe('strictness', () => {
   it('is ordered, so forgiving really is more forgiving', () => {
     expect(STRICTNESS_THRESHOLD.easy).toBeLessThan(STRICTNESS_THRESHOLD.normal);
     expect(STRICTNESS_THRESHOLD.normal).toBeLessThan(STRICTNESS_THRESHOLD.strict);
+  });
+});
+
+describe('speech rate', () => {
+  it('refuses a rate that is not on offer', () => {
+    expect(parsePreferences({ speechRate: 3 }).speechRate).toBe(
+      DEFAULT_PREFERENCES.speechRate
+    );
   });
 });
