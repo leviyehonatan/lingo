@@ -1,22 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
+import { AUTH_SECRET, BASE_URL, DATABASE_URL, E2E_PORT } from './e2e/fixtures';
 
 /**
  * End-to-end tests run against a real Next.js server and a real Postgres.
  *
- * Point `E2E_DATABASE_URL` at a throwaway database — `globalSetup` pushes the
- * schema into it and wipes the test user's rows, so never aim it at a database
- * you care about. See the Testing section of the README.
+ * Point `E2E_DATABASE_URL` at a throwaway database whose schema you have
+ * already pushed. See the Testing section of the README.
  */
-const DATABASE_URL =
-  process.env.E2E_DATABASE_URL ?? 'postgresql://postgres@localhost:5432/lingo_e2e';
-
-// The app refuses to start without these; e2e signs its own session cookie
-// rather than talking to Google, so the OAuth values only need to be present.
-const AUTH_SECRET = process.env.AUTH_SECRET ?? 'e2e-secret-not-for-production';
-const PORT = Number(process.env.E2E_PORT ?? 3123);
-// `localhost`, not `127.0.0.1`: the Next dev server rejects `_next/*` requests
-// whose Host is not an allowed dev origin, and answers 403 for the chunks.
-const baseURL = `http://localhost:${PORT}`;
+const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: './e2e',
@@ -24,26 +15,29 @@ export default defineConfig({
   // Each spec drives one shared user's progress rows, so keep them serial.
   workers: 1,
   fullyParallel: false,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? 'github' : 'list',
-  timeout: 30_000,
-  expect: { timeout: 10_000 },
+  forbidOnly: isCI,
+  retries: isCI ? 1 : 0,
+  reporter: isCI ? [['github'], ['html', { open: 'never' }]] : [['list']],
+  // A cold `next dev` compile is far slower on a CI runner than on a laptop.
+  timeout: isCI ? 60_000 : 30_000,
+  expect: { timeout: isCI ? 30_000 : 10_000 },
   use: {
-    baseURL,
+    baseURL: BASE_URL,
     storageState: './e2e/.auth/state.json',
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run dev -- --port ' + PORT,
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    command: `npm run dev -- --port ${E2E_PORT}`,
+    url: BASE_URL,
+    reuseExistingServer: !isCI,
+    timeout: isCI ? 180_000 : 120_000,
     env: {
       DATABASE_URL,
       AUTH_SECRET,
-      AUTH_URL: baseURL,
+      AUTH_URL: BASE_URL,
+      // The app refuses to start without these; e2e never reaches Google, so
+      // the values only need to be present.
       GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? 'e2e-client-id',
       GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ?? 'e2e-client-secret',
     },

@@ -114,6 +114,11 @@ Sign-in is Google-only, so the setup mints the same Auth.js JWT session cookie
 the app would have issued rather than driving an OAuth flow. Override
 `AUTH_SECRET` and `E2E_PORT` if the defaults clash with anything local.
 
+CI runs the same suite in its own job against a throwaway Postgres service
+container, pushing the schema itself before the tests. Because
+`deploy-lingo.yml` gates on this whole workflow, a red e2e run now blocks a
+deploy. A failing run uploads the Playwright HTML report as a job artifact.
+
 ## Deployment
 
 The multi-stage `Dockerfile` builds a standalone Next.js output (`next.config.ts` sets `output: "standalone"`, `prisma generate` runs at build time), so the app can run on any container platform. It needs a PostgreSQL instance and these env vars at runtime: `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and the Google OAuth pair. Host-specific setup notes are kept out of this repo.

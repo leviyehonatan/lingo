@@ -4,8 +4,13 @@ import { execFileSync } from 'node:child_process';
 import { Client } from 'pg';
 import { encode } from 'next-auth/jwt';
 import {
+  AUTH_SECRET,
   AUTH_STATE_PATH,
+  BASE_URL,
+  COOKIE_DOMAIN,
+  DATABASE_URL,
   SESSION_COOKIE,
+  STUDY_URL,
   TEST_USER_EMAIL,
   TEST_USER_ID,
   TOPIC_ID,
@@ -33,13 +38,9 @@ Then re-run: E2E_DATABASE_URL=postgresql://<user>@localhost:5432/lingo_e2e npm r
  * in the database.
  */
 export default async function globalSetup() {
-  const databaseUrl =
-    process.env.E2E_DATABASE_URL ?? 'postgresql://postgres@localhost:5432/lingo_e2e';
-  const authSecret = process.env.AUTH_SECRET ?? 'e2e-secret-not-for-production';
-
   // Plain `pg` rather than the Prisma client: Playwright loads this file as
   // CommonJS, and the generated client is ESM-only.
-  const db = new Client({ connectionString: databaseUrl });
+  const db = new Client({ connectionString: DATABASE_URL });
   await db.connect();
 
   let seededWords: number;
@@ -57,7 +58,7 @@ export default async function globalSetup() {
   // Seeding is upsert-only, so it is safe to repeat.
   if (seededWords === 0) {
     execFileSync('npm', ['run', 'seed'], {
-      env: { ...process.env, DATABASE_URL: databaseUrl },
+      env: { ...process.env, DATABASE_URL },
       stdio: 'inherit',
     });
   }
@@ -78,7 +79,7 @@ export default async function globalSetup() {
   const token = await encode({
     // `sub` is what the session callback copies into `session.user.id`.
     token: { sub: TEST_USER_ID, email: TEST_USER_EMAIL, name: 'E2E User' },
-    secret: authSecret,
+    secret: AUTH_SECRET,
     salt: SESSION_COOKIE,
     maxAge: 60 * 60,
   });
@@ -88,7 +89,7 @@ export default async function globalSetup() {
       {
         name: SESSION_COOKIE,
         value: token,
-        domain: 'localhost',
+        domain: COOKIE_DOMAIN,
         path: '/',
         expires: Math.floor(Date.now() / 1000) + 3600,
         httpOnly: true,
@@ -101,4 +102,23 @@ export default async function globalSetup() {
 
   await mkdir(dirname(AUTH_STATE_PATH), { recursive: true });
   await writeFile(AUTH_STATE_PATH, JSON.stringify(state, null, 2));
+
+  await warmUp();
+}
+
+/**
+ * Playwright starts the web server before this file runs, so we can force the
+ * dev server to compile the study route and its API routes now. Without it the
+ * first test pays that cost inside its own timeout, which is tight on a cold
+ * CI runner.
+ */
+async function warmUp() {
+  const paths = [STUDY_URL, '/api/vocabulary?pair=hu-he', '/api/progress'];
+  await Promise.all(
+    paths.map((path) =>
+      fetch(`${BASE_URL}${path}`).catch(() => {
+        // A warm-up miss is not a failure; the tests assert the real thing.
+      })
+    )
+  );
 }
