@@ -3,6 +3,7 @@ import {
   computeStats,
   dueWordIds,
   filterWordIds,
+  sameIdSet,
   shuffle,
   type ProgressByWord,
 } from './study';
@@ -91,5 +92,40 @@ describe('shuffle', () => {
     expect(shuffle(['a', 'b', 'c', 'd', 'e'], seq())).toEqual(
       shuffle(['a', 'b', 'c', 'd', 'e'], seq())
     );
+  });
+});
+
+describe('sameIdSet', () => {
+  it('accepts the same array', () => {
+    expect(sameIdSet(ids, ids)).toBe(true);
+  });
+
+  it('accepts a fresh array with the same ids', () => {
+    expect(sameIdSet(ids, [...ids])).toBe(true);
+  });
+
+  it('ignores order', () => {
+    expect(sameIdSet(['a', 'b', 'c'], ['c', 'a', 'b'])).toBe(true);
+  });
+
+  it('rejects a deck that lost a word', () => {
+    expect(sameIdSet(ids, ['a', 'b', 'c'])).toBe(false);
+  });
+
+  it('rejects a deck that gained a word', () => {
+    expect(sameIdSet(['a', 'b'], ['a', 'b', 'c'])).toBe(false);
+  });
+
+  it('rejects a swap that keeps the length', () => {
+    expect(sameIdSet(['a', 'b'], ['a', 'z'])).toBe(false);
+  });
+
+  it('treats two empty decks as the same', () => {
+    expect(sameIdSet([], [])).toBe(true);
+  });
+
+  it('compares positionally when a list repeats an id', () => {
+    expect(sameIdSet(['a', 'a', 'b'], ['a', 'b', 'b'])).toBe(false);
+    expect(sameIdSet(['a', 'a', 'b'], ['a', 'a', 'b'])).toBe(true);
   });
 });
