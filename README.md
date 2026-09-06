@@ -93,10 +93,12 @@ No database is needed and the whole run finishes in well under a second.
 
 ### Seeing it locally, signed in
 
-Sign-in is Google-only and a local checkout has no Google credentials, so there
-is no way to reach a signed-in page by hand. Two scripts stand in for it, using
-the same trick as the e2e setup: mint the session cookie the app would have
-issued.
+Sign-in is Google-only and a local checkout has no Google credentials, so a
+dev server signs you in by itself: any page you open without a session goes
+through `/api/dev/login`, which creates the local user (`לימוד מקומי`) and sets
+the cookie Auth.js would have issued. This only happens under `next dev`; a
+production build never has the route. Set `DEV_AUTO_LOGIN=0` to see the app as
+an anonymous visitor instead.
 
 Once per database:
 
@@ -104,26 +106,20 @@ Once per database:
 createdb lingo_dev
 DATABASE_URL=postgresql://$USER@localhost:5432/lingo_dev npx prisma db push
 DATABASE_URL=postgresql://$USER@localhost:5432/lingo_dev npm run seed
-DATABASE_URL=postgresql://$USER@localhost:5432/lingo_dev npm run dev:user
 ```
 
-Then, in one terminal, the server:
+Then:
 
 ```bash
-DATABASE_URL=postgresql://$USER@localhost:5432/lingo_dev \
-  AUTH_SECRET=local-dev-secret-not-for-production \
-  GOOGLE_CLIENT_ID=local GOOGLE_CLIENT_SECRET=local npm run dev
+DATABASE_URL=postgresql://$USER@localhost:5432/lingo_dev npm run dev
 ```
 
-and in another, a browser window that is already signed in:
+and open http://localhost:3000. AUTH_SECRET and the Google keys are optional in
+development.
 
-```bash
-npm run dev:session
-```
-
-`npm run dev:session -- --path /hu-he` opens somewhere else, `--headless` just
-prints the cookie, and `--port`, `--secret` and `--user` override the rest. The
-secret only has to match between the two commands.
+`npm run dev:session` still opens a signed-in Chrome window, which is useful
+for a browser that is not your default, and `npm run dev:user` still creates
+the user row on its own; neither is needed for the ordinary case any more.
 
 ### End-to-end
 
