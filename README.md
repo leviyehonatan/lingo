@@ -84,15 +84,21 @@ Unit tests run under Vitest and live next to the code they cover as `*.test.ts`:
 npm test
 ```
 
-They cover the pure spaced-repetition logic in `src/lib/progress.ts`, the study
-filters and counters in `src/lib/study.ts`, and the progress API routes with
-`@/lib/prisma` and `@/lib/auth` mocked. No database is needed.
+They cover the vocabulary data invariants in `src/data/` (levels, ids, both
+languages present, no duplicates), the pure spaced-repetition logic in
+`src/lib/progress.ts`, the study filters and counters in `src/lib/study.ts`,
+the same-origin `callbackUrl` guard in `src/lib/safe-callback-url.ts`, and the
+progress and vocabulary API routes with `@/lib/prisma` and `@/lib/auth` mocked.
+No database is needed and the whole run finishes in well under a second.
 
 ### End-to-end
 
-The Playwright suite in `e2e/` drives a real dev server against a real Postgres
-and asserts that studying actually persists. It needs a throwaway database that
-you create once yourself:
+The Playwright suite in `e2e/` drives a real dev server against a real Postgres.
+`public.spec.ts` checks what an anonymous visitor sees: the home page lists the
+`hu-he` pair, the pair page lists every seeded topic, and `/hu-he/study/<topic>`
+redirects to `/login?callbackUrl=…` with the Google button. `study.spec.ts`
+signs in and asserts that studying actually persists. It needs a throwaway
+database that you create once yourself:
 
 ```bash
 createdb lingo_e2e
@@ -114,10 +120,12 @@ Sign-in is Google-only, so the setup mints the same Auth.js JWT session cookie
 the app would have issued rather than driving an OAuth flow. Override
 `AUTH_SECRET` and `E2E_PORT` if the defaults clash with anything local.
 
-CI runs the same suite in its own job against a throwaway Postgres service
+CI (`.github/workflows/ci.yml`) runs on every push to `main` and every pull
+request as three jobs: `check` (lint and typecheck), `test` (Vitest), and `e2e`,
+which runs the same Playwright suite against a throwaway Postgres 16 service
 container, pushing the schema itself before the tests. Because
-`deploy-lingo.yml` gates on this whole workflow, a red e2e run now blocks a
-deploy. A failing run uploads the Playwright HTML report as a job artifact.
+`deploy-lingo.yml` gates on this whole workflow, a red run in any of them blocks
+a deploy. A failing e2e run uploads the Playwright HTML report as a job artifact.
 
 ## Deployment
 

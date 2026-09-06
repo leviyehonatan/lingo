@@ -3,13 +3,7 @@
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-
-// Only allow same-origin redirect targets so the callbackUrl query param
-// cannot be used to bounce a freshly signed-in user to another site.
-function safeCallbackUrl(raw: string | null): string {
-  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/';
-  return raw;
-}
+import { safeCallbackUrl } from '@/lib/safe-callback-url';
 
 function LoginCard() {
   const params = useSearchParams();

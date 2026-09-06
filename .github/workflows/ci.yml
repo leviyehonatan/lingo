@@ -37,6 +37,27 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+  # Vitest: pure logic, data invariants and route handlers with Prisma mocked.
+  # No database. Its own job so a unit failure reads distinctly from a lint or
+  # typecheck failure in the PR checks.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
       - name: Unit tests
         run: npm test
 
