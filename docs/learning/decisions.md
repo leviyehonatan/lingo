@@ -32,6 +32,22 @@ Implementation notes for whoever picks this up:
   They will need updating, and that update is part of the change, not a
   follow-up.
 
+## Landed
+
+### D2 — The account chip, and a spoken-answer matcher that is not a substring test (2026-09-06)
+
+Two items from the top of the list, shipped together.
+
+The root layout renders an account chip that names the signed-in user and offers
+a way out, replacing a state where the only signal a session existed was that
+the study page did not redirect, and where signing out was impossible without
+clearing cookies. It reads the session on the server, so no client-side session
+provider was added, and it uses initials rather than the provider's avatar so no
+remote image has to load.
+
+Answer grading moved into `src/lib/answer-match.ts`. See the matching section of
+[`voice-mode.md`](voice-mode.md) for what it accepts and what is still missing.
+
 ## Proposed, not yet decided
 
 ### P1 — Pass or fail with a reset, instead of a three-way status
@@ -74,9 +90,8 @@ We cannot currently tell whether reviews are landing in the 90 to 95 percent
 band the schedule assumes. Without it, every interval-tuning discussion is
 guesswork.
 
-### P7 — Show who is signed in, and allow signing out
+### P7 — A manual override for a wrong spoken verdict
 
-Unrelated to the method, but open: the app has no account UI at all, so the only
-signal that a session exists is that the study page did not redirect, and there
-is no way to sign out. The root layout is a server component and can read the
-session directly.
+The matcher is hardened but still has the last word. Hebrew recognition is weak
+enough that a learner needs to be able to say the grader got it wrong, which is
+also what keeps a failed recognition from poisoning the schedule.

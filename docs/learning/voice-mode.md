@@ -59,19 +59,30 @@ counter.
 
 ## Matching a spoken answer
 
-The current matcher in the study page accepts a match when either string
-contains the other, and it runs on interim results. Saying a single syllable that
-happens to appear inside the target scores it correct before the learner has
-finished speaking. It also reads only the top transcript although the recognizer
-is asked for several. Before voice mode can be trusted it needs:
+Grading lives in `src/lib/answer-match.ts`, pure and unit tested, shared by
+anything that has to decide whether an answer counts.
 
-- normalization of case, punctuation and whitespace;
-- a similarity threshold rather than substring containment, with a minimum
-  length guard;
-- every returned alternative considered, not just the first;
-- final results preferred over interim ones for a fail verdict;
-- a manual override, because the recognizer must never be the last word on a
-  wrong answer.
+What it does:
+
+- normalizes case, punctuation, Hebrew vowel points and whitespace before any
+  comparison;
+- accepts either side of a slashed entry, and a word with or without the sense
+  qualifier our data keeps in parentheses, because any correct answer passes;
+- accepts the answer spoken with filler around it, by looking for the whole
+  expected phrase at word granularity rather than as a character substring;
+- forgives a single dropped diacritic in a longer word through an edit-distance
+  threshold, while demanding an exact match on short words, where one edit is
+  usually a different word;
+- considers every candidate transcript the recognizer returns, not just the one
+  it ranks first.
+
+It replaced a check that accepted a match when either string contained the
+other, which let a single spoken syllable score a word correct, and which ran on
+interim results so it could fire before the learner finished speaking.
+
+Still missing, and needed before voice grading can be trusted hands-free: a
+manual override, so the learner can overturn a wrong verdict. The recognizer
+must never be the last word on a failure, especially in Hebrew.
 
 ## Platform reality
 

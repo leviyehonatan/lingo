@@ -138,6 +138,10 @@ Honest gap list, so nobody assumes the app already implements the above.
 - **Nothing enforces the short recall window**, and nothing asks the learner to
   answer aloud outside the optional voice buttons.
 
+Closed since this was written: spoken answers are now graded by
+`src/lib/answer-match.ts`, which accepts any valid alternative and no longer
+accepts a fragment of the answer.
+
 None of these are bugs against the current spec. They are the distance between
 what lingo is and what the method asks for, and they are the menu that
 `decisions.md` draws from.
