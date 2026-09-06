@@ -396,16 +396,17 @@ function Choice({
 
 export function SessionHeader({
   topicName,
-  position,
+  settled,
   total,
   onEnd,
 }: {
   topicName: string;
-  position: number;
+  /** Words finished. Counted in words because the card queue grows. */
+  settled: number;
   total: number;
   onEnd: () => void;
 }) {
-  const pct = total === 0 ? 0 : Math.round(((position - 1) / total) * 100);
+  const pct = total === 0 ? 0 : Math.round((settled / total) * 100);
   return (
     <div className="sticky top-0 z-30 border-b border-slate-800 bg-slate-900/95 backdrop-blur">
       {/* The account chip floats over the inline-end corner, so the session's
@@ -424,7 +425,7 @@ export function SessionHeader({
               what the learner needs mid-session, so the topic name gives way. */}
           <p className="hidden truncate text-sm font-medium sm:block">{topicName}</p>
           <p data-session-position className="text-xs text-slate-400">
-            {t.sessionCardPosition(position, total)}
+            {t.sessionWordsLeft(settled, total)}
           </p>
         </div>
       </div>
@@ -440,6 +441,7 @@ export function GuidedCard({
   stage,
   answer,
   heard,
+  comesBack,
   direction,
   canListen,
   handsFree,
@@ -457,6 +459,8 @@ export function GuidedCard({
   answer: SessionAnswer | undefined;
   /** The last thing the learner said about this card, if anything. */
   heard: SessionAttempt | undefined;
+  /** True when this word will be asked again before the round ends. */
+  comesBack: boolean;
   direction: Direction;
   canListen: boolean;
   /** Listen without being asked, and move on once the learner has spoken. */
@@ -779,6 +783,7 @@ export function GuidedCard({
           <Verdict
             answer={answer}
             heard={heard}
+            comesBack={comesBack}
             onOverride={onOverride}
             onNext={onNext}
           />
@@ -847,11 +852,14 @@ function Introduced({
 function Verdict({
   answer,
   heard,
+  comesBack,
   onOverride,
   onNext,
 }: {
   answer: SessionAnswer;
   heard: SessionAttempt | undefined;
+  /** True when this word is queued to be asked again before the round ends. */
+  comesBack: boolean;
   onOverride: (status: WordStatus) => void;
   onNext: () => void;
 }) {
@@ -901,6 +909,12 @@ function Verdict({
           </button>
         ))}
       </div>
+
+      {comesBack && (
+        <p data-verdict-again className="mt-3 text-center text-xs text-indigo-300">
+          {t.sessionWordBack}
+        </p>
+      )}
 
       <p className="mt-2 text-center text-[0.7rem] text-slate-600">
         {t.overrideHint}

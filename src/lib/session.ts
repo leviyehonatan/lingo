@@ -15,6 +15,33 @@ import type { CardMode } from './plan';
 
 export type SessionStage = 'prompt' | 'reveal' | 'feedback' | 'done';
 
+/**
+ * How far ahead a word goes when it has to come back inside this sitting,
+ * measured in cards.
+ *
+ * The interval ladder's short rungs are minutes long, which no sitting built as
+ * a fixed list can ever reach: a word missed at the start could not return
+ * until the next day. Pimsleur's schedule fires four of its rungs before a
+ * lesson ends, and Duolingo will not let a lesson finish while an item is still
+ * wrong. This is that idea, measured in cards rather than seconds, because a
+ * card is what a learner actually experiences as distance.
+ */
+export const REINSERT_GAP: Record<WordStatus, number | null> = {
+  // Missed: bring it back soon, while the answer is still fresh.
+  unknown: 3,
+  // Half known, or just met: far enough that it has to be recalled again.
+  learning: 6,
+  // Recalled: the schedule takes it from here.
+  known: null,
+};
+
+/**
+ * How many times one word may appear in a single sitting, the first showing
+ * included. A word that keeps failing has to stop eating the session; the
+ * schedule will bring it back soon enough.
+ */
+export const MAX_APPEARANCES = 3;
+
 /** One card, already resolved to the direction being studied. */
 export interface SessionCard {
   id: string;
@@ -97,7 +124,7 @@ export function recordAnswer(
 ): SessionState {
   const card = currentCard(state);
   if (!card || state.stage === 'done' || state.stage === 'feedback') return state;
-  return {
+  const answered: SessionState = {
     ...state,
     stage: 'feedback',
     answers: [
@@ -105,6 +132,28 @@ export function recordAnswer(
       { cardId: card.id, status, nextReview, answeredAt: now, corrected: false },
     ],
   };
+  return requeue(answered, status);
+}
+
+/**
+ * Put the card that was just answered back into the queue, if that grade says
+ * it should come back. Inserting rather than appending is the point: a missed
+ * word returns a few cards later, not at some unreachable end.
+ */
+function requeue(state: SessionState, status: WordStatus): SessionState {
+  const card = currentCard(state);
+  const gap = REINSERT_GAP[status];
+  if (!card || gap === null) return state;
+
+  const appearances = state.cards.filter((other) => other.id === card.id).length;
+  if (appearances >= MAX_APPEARANCES) return state;
+
+  const at = Math.min(state.index + gap, state.cards.length);
+  const cards = [...state.cards];
+  // It comes back as a question whatever it was: a word already met is never
+  // introduced twice.
+  cards.splice(at, 0, { ...card, mode: 'review' });
+  return { ...state, cards };
 }
 
 /**
@@ -197,16 +246,31 @@ export function lastAnswer(state: SessionState): SessionAnswer | undefined {
 }
 
 export interface SessionProgress {
-  /** 1-based position of the card being asked, capped at the deck size. */
-  position: number;
+  /** Distinct words in the sitting. Fixed once it starts. */
   total: number;
+  /** Words with nothing left to do. */
+  settled: number;
+  /** Words still to come, the one on screen included. */
+  remaining: number;
   answered: number;
 }
 
+/**
+ * Progress is counted in words, not cards.
+ *
+ * The queue grows as words are missed and put back, so a card count would climb
+ * under the learner. The number of words in the sitting never changes, and a
+ * word is done when it has no appearance left ahead of it.
+ */
 export function sessionProgress(state: SessionState): SessionProgress {
+  const total = new Set(state.cards.map((card) => card.id)).size;
+  const remaining = new Set(
+    state.cards.slice(state.index).map((card) => card.id)
+  ).size;
   return {
-    position: Math.min(state.index + 1, state.cards.length),
-    total: state.cards.length,
+    total,
+    settled: total - remaining,
+    remaining,
     answered: state.answers.length,
   };
 }

@@ -7,6 +7,7 @@ import {
   currentCard,
   endSession,
   lastAnswer,
+  MAX_APPEARANCES,
   noteAttempt,
   recordAnswer,
   revealAnswer,
@@ -29,14 +30,24 @@ describe('startSession', () => {
     const state = startSession(cards);
     expect(state.stage).toBe('prompt');
     expect(currentCard(state)).toEqual(cards[0]);
-    expect(sessionProgress(state)).toEqual({ position: 1, total: 2, answered: 0 });
+    expect(sessionProgress(state)).toEqual({
+      total: 2,
+      settled: 0,
+      remaining: 2,
+      answered: 0,
+    });
   });
 
   it('is already finished when there is nothing to study', () => {
     const state = startSession([]);
     expect(state.stage).toBe('done');
     expect(currentCard(state)).toBeUndefined();
-    expect(sessionProgress(state)).toEqual({ position: 0, total: 0, answered: 0 });
+    expect(sessionProgress(state)).toEqual({
+      total: 0,
+      settled: 0,
+      remaining: 0,
+      answered: 0,
+    });
   });
 });
 
@@ -59,7 +70,12 @@ describe('one card, start to finish', () => {
     state = advance(state);
     expect(state.stage).toBe('prompt');
     expect(currentCard(state)).toEqual(cards[1]);
-    expect(sessionProgress(state)).toEqual({ position: 2, total: 2, answered: 1 });
+    expect(sessionProgress(state)).toEqual({
+      total: 2,
+      settled: 1,
+      remaining: 1,
+      answered: 1,
+    });
   });
 
   it('finishes after the last card', () => {
@@ -252,3 +268,84 @@ describe('taught words', () => {
   });
 });
 
+
+describe('a missed word comes back inside the sitting', () => {
+  const deck: SessionCard[] = [
+    { id: 'a', prompt: 'igen', answer: 'כן', mode: 'review' },
+    { id: 'b', prompt: 'nem', answer: 'לא', mode: 'review' },
+    { id: 'c', prompt: 'talán', answer: 'אולי', mode: 'review' },
+    { id: 'd', prompt: 'soha', answer: 'לעולם לא', mode: 'review' },
+    { id: 'e', prompt: 'mindig', answer: 'תמיד', mode: 'review' },
+  ];
+
+  it('puts a missed word back a few cards later, not at the end', () => {
+    const state = recordAnswer(startSession(deck), 'unknown', NOW + 60_000, NOW);
+    expect(state.cards.map((card) => card.id)).toEqual(['a', 'b', 'c', 'a', 'd', 'e']);
+  });
+
+  it('puts a half-known word back further away', () => {
+    const state = recordAnswer(startSession(deck), 'learning', NOW + 600_000, NOW);
+    expect(state.cards.map((card) => card.id)).toEqual(['a', 'b', 'c', 'd', 'e', 'a']);
+  });
+
+  it('lets a recalled word go, leaving the sitting to the schedule', () => {
+    const state = recordAnswer(startSession(deck), 'known', NOW + DAY, NOW);
+    expect(state.cards.map((card) => card.id)).toEqual(['a', 'b', 'c', 'd', 'e']);
+  });
+
+  it('brings a word met for the first time back as a question', () => {
+    const teaching: SessionCard[] = [
+      { id: 'a', prompt: 'igen', answer: 'כן', mode: 'teach' },
+      ...deck.slice(1),
+    ];
+    const state = recordAnswer(startSession(teaching), 'learning', NOW + 600_000, NOW);
+    expect(state.cards.at(-1)).toEqual({
+      id: 'a',
+      prompt: 'igen',
+      answer: 'כן',
+      mode: 'review',
+    });
+  });
+
+  it('clamps the gap to the end of a short sitting', () => {
+    const short = [deck[0], deck[1]];
+    const state = recordAnswer(startSession(short), 'learning', NOW + 600_000, NOW);
+    expect(state.cards.map((card) => card.id)).toEqual(['a', 'b', 'a']);
+  });
+
+  it('stops requeuing a word that keeps failing, so it cannot eat the sitting', () => {
+    let state = startSession(deck);
+    for (let round = 0; round < 5; round++) {
+      // Answer the same word wrong every time it comes round again.
+      while (currentCard(state)?.id !== 'a' && state.stage !== 'done') {
+        state = advance(recordAnswer(state, 'known', NOW + DAY, NOW));
+      }
+      if (state.stage === 'done') break;
+      state = advance(recordAnswer(state, 'unknown', NOW + 60_000, NOW));
+    }
+    expect(state.cards.filter((card) => card.id === 'a')).toHaveLength(MAX_APPEARANCES);
+  });
+});
+
+describe('progress is counted in words, not cards', () => {
+  const deck: SessionCard[] = [
+    { id: 'a', prompt: 'igen', answer: 'כן', mode: 'review' },
+    { id: 'b', prompt: 'nem', answer: 'לא', mode: 'review' },
+  ];
+
+  it('does not grow when a missed word is put back', () => {
+    const before = sessionProgress(startSession(deck)).total;
+    const state = recordAnswer(startSession(deck), 'unknown', NOW + 60_000, NOW);
+    expect(sessionProgress(state).total).toBe(before);
+  });
+
+  it('counts a word as done only when nothing of it is left ahead', () => {
+    let state = recordAnswer(startSession(deck), 'unknown', NOW + 60_000, NOW);
+    state = advance(state);
+    // 'a' is still queued behind 'b', so one word is settled, not two.
+    expect(sessionProgress(state)).toMatchObject({ total: 2, settled: 0, remaining: 2 });
+
+    state = advance(recordAnswer(state, 'known', NOW + DAY, NOW));
+    expect(sessionProgress(state)).toMatchObject({ settled: 1, remaining: 1 });
+  });
+});

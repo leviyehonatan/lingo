@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
-import { STUDY_URL } from './fixtures';
+import { STUDY_URL, TOPIC_ID } from './fixtures';
 import { disableSpeech, fakeSpeech, say } from './speech';
+import { promptWord, seedWord, words } from './session';
 
 /**
  * A learner cannot say a word they have never met, so the session teaches
@@ -62,9 +63,9 @@ test('a word met this sitting comes back as a question before it ends', async ({
   await expect(page.locator('[data-verdict-interval]')).toHaveText('חוזרת בעוד 10 דקות');
   await expect.poll(async () => (await progressRows(page))[0]?.status).toBe('learning');
 
-  // Every word met today is asked for later in the same sitting, and the
-  // sitting says so from the start rather than growing as it goes.
-  await expect(page.locator('[data-session-position]')).toHaveText('כרטיס 1 מתוך 10');
+  // Progress is counted in words, so putting the word back into the queue does
+  // not move the number: it is not finished with until it has been asked.
+  await expect(page.locator('[data-session-position]')).toHaveText('0 מתוך 5 מילים');
   await expect(page.locator('[data-introduced-pair]')).toBeVisible();
 
   await page.locator('[data-session-next]').click();
@@ -224,4 +225,51 @@ test('asks in Hungarian when the direction is reversed', async ({ page }) => {
   await expect(page.locator('[data-session-task]')).toHaveText(
     'נזכרו במילה בהונגרית'
   );
+});
+
+test('a missed word comes back before the round ends', async ({ page }) => {
+  const [first, second] = await words(page, TOPIC_ID);
+  await seedWord(page, first.id, 'known');
+  await seedWord(page, second.id, 'known');
+
+  await page.goto(STUDY_URL);
+  await page.locator('[data-options-toggle]').click();
+  await page.locator('[data-deck="known"]').click();
+  await page.locator('[data-session-start]').click();
+
+  const missed = (await page.locator('[data-card-prompt]').innerText()).trim();
+  await page.locator('[data-session-reveal]').click();
+  await page.locator('[data-grade="unknown"]').click();
+
+  // The verdict says the word is coming back, so its return is expected.
+  await expect(page.locator('[data-verdict-again]')).toBeVisible();
+  await page.locator('[data-session-next]').click();
+
+  // The other word, then the missed one again, rather than tomorrow.
+  expect(await promptWord(page)).not.toBe(missed);
+  await page.locator('[data-session-reveal]').click();
+  await page.locator('[data-grade="known"]').click();
+  await page.locator('[data-session-next]').click();
+
+  expect(await promptWord(page)).toBe(missed);
+  await expect(page.locator('[data-session-position]')).toHaveText('1 מתוך 2 מילים');
+});
+
+test('a word recalled first time is not asked again in the same round', async ({
+  page,
+}) => {
+  const [word] = await words(page, TOPIC_ID);
+  await seedWord(page, word.id, 'known');
+
+  await page.goto(STUDY_URL);
+  await page.locator('[data-options-toggle]').click();
+  await page.locator('[data-deck="known"]').click();
+  await page.locator('[data-session-start]').click();
+
+  await page.locator('[data-session-reveal]').click();
+  await page.locator('[data-grade="known"]').click();
+  await expect(page.locator('[data-verdict-again]')).toHaveCount(0);
+  await page.locator('[data-session-next]').click();
+
+  await expect(page.locator('[data-session-summary]')).toBeVisible();
 });

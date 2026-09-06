@@ -135,6 +135,8 @@ Honest gap list, so nobody assumes the app already implements the above.
   the book warns about, and there is no frequency ordering anywhere. Within a
   sitting the order is now due-first rather than arbitrary, but the pool a topic
   draws from is still a themed list.
+- **The intervals are still the same for everyone.** Words come back inside a
+  sitting now, but the ladder itself does not respond to how a learner is doing.
 - **What is measured is not yet used.** Accuracy, answer times and lapses are
   recorded and shown, but nothing feeds them back into the intervals, so the
   schedule still cannot correct itself.

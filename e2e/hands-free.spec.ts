@@ -106,7 +106,8 @@ test('a spoken answer carries the session forward without a click', async ({ pag
     'data-verdict-status',
     'known'
   );
-  await expect(page.locator('[data-session-position]')).toHaveText('כרטיס 2 מתוך 2', {
+  // One word finished, and the session moved to the next without a click.
+  await expect(page.locator('[data-session-position]')).toHaveText('1 מתוך 2 מילים', {
     timeout: 6000,
   });
 });
