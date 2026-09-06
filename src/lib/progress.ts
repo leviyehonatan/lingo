@@ -12,9 +12,13 @@ const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
 /**
- * Interval ladder in milliseconds, indexed by how many times the word has been
- * reviewed. A word answered correctly again and again climbs its ladder; the
- * last rung repeats forever.
+ * Interval ladder in milliseconds, indexed by the current run of successes.
+ *
+ * Position comes from the streak, not from a lifetime count of reviews, so a
+ * word that has been answered many times and then forgotten starts its climb
+ * again rather than jumping back to a long interval it no longer deserves. That
+ * is what every working scheduler does: Babbel sends a missed item back to the
+ * next day whatever its history.
  */
 const LADDERS: Record<WordStatus, readonly number[]> = {
   // Wrong or not yet learned: come back within the same session.
@@ -34,14 +38,28 @@ export function isWordStatus(value: unknown): value is WordStatus {
 /**
  * How long to wait before showing this word again.
  *
- * `reviewCount` is the number of reviews *including* the one being recorded,
- * so the first review of a word is `reviewCount === 1` and lands on rung 0.
- * Counts below 1 clamp to the first rung, counts past the end repeat the last.
+ * `streak` is the run of successes *including* the answer being recorded, so a
+ * word recalled for the first time has a streak of 1 and lands on rung 0.
+ * Streaks below 1 clamp to the first rung, streaks past the end repeat the last.
  */
-export function reviewInterval(status: WordStatus, reviewCount: number): number {
+export function reviewInterval(status: WordStatus, streak: number): number {
   const ladder = LADDERS[status];
-  const rung = Math.min(Math.max(Math.floor(reviewCount) - 1, 0), ladder.length - 1);
+  const rung = Math.min(Math.max(Math.floor(streak) - 1, 0), ladder.length - 1);
   return ladder[rung];
+}
+
+/**
+ * The streak after an answer.
+ *
+ * A recall extends the run. A miss ends it, which is what sends the word back
+ * to the bottom of its ladder. A half-recall holds position: the learner did
+ * not fail, but they did not earn a longer wait either.
+ */
+export function nextStreak(previous: number, status: WordStatus): number {
+  const held = Math.max(0, Math.floor(previous));
+  if (status === 'known') return held + 1;
+  if (status === 'unknown') return 0;
+  return Math.max(held, 1);
 }
 
 /**
@@ -49,10 +67,10 @@ export function reviewInterval(status: WordStatus, reviewCount: number): number 
  */
 export function computeNextReview(
   status: WordStatus,
-  reviewCount: number,
+  streak: number,
   now: number
 ): number {
-  return now + reviewInterval(status, reviewCount);
+  return now + reviewInterval(status, streak);
 }
 
 /** A word with no recorded review at all is due; otherwise compare the clock. */

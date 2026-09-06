@@ -203,10 +203,12 @@ type ListenState = 'idle' | 'listening' | 'thinking';
 function useListening({
   expectedText,
   lang,
+  threshold,
   onResult,
 }: {
   expectedText: string;
   lang: string;
+  threshold?: number;
   onResult: (result: SpokenResult) => void;
 }) {
   const [state, setState] = useState<ListenState>('idle');
@@ -214,10 +216,10 @@ function useListening({
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const settledRef = useRef(false);
-  const latest = useRef({ expectedText, lang, onResult });
+  const latest = useRef({ expectedText, lang, threshold, onResult });
 
   useEffect(() => {
-    latest.current = { expectedText, lang, onResult };
+    latest.current = { expectedText, lang, threshold, onResult };
   });
 
   const stop = useCallback(() => {
@@ -273,7 +275,11 @@ function useListening({
       }
 
       setPartial(transcript);
-      const accepted = matchesAnyAlternative([...candidates], latest.current.expectedText);
+      const accepted = matchesAnyAlternative(
+        [...candidates],
+        latest.current.expectedText,
+        latest.current.threshold
+      );
       // A wrong guess is only final once the learner has stopped talking.
       if (accepted || (isFinal && transcript)) settle(transcript, accepted);
     };
@@ -333,6 +339,7 @@ export function SpeakButton({
   graded,
   dataAttr,
   listeningLabel,
+  threshold,
   autoStartDelayMs = null,
   autoStartKey = 0,
   onResult,
@@ -346,6 +353,8 @@ export function SpeakButton({
    * asks for one thing, and this is where it says which.
    */
   listeningLabel: string;
+  /** How close the learner has to sound; their setting, not ours. */
+  threshold?: number;
   graded: boolean;
   dataAttr: string;
   /**
@@ -365,6 +374,7 @@ export function SpeakButton({
   const { state, partial, error, start, stop } = useListening({
     expectedText,
     lang,
+    threshold,
     onResult,
   });
 

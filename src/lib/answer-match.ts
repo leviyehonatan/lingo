@@ -139,3 +139,61 @@ export function matchesAnyAlternative(
     matchesExpected(alternative, expected, threshold)
   );
 }
+
+export interface WordMatch {
+  word: string;
+  heard: boolean;
+}
+
+/**
+ * Which words of an answer were heard, so feedback can point at the one that
+ * went wrong instead of failing the whole utterance.
+ *
+ * Speak does this by lighting up the words it matched and leaving the rest
+ * neutral, which is far more use on a phrase than a single verdict. Order is
+ * ignored deliberately: a learner who says the right words in a clumsy order
+ * has still produced them, and the whole-answer grade already judges the rest.
+ */
+export function matchedWords(spoken: string, expected: string): WordMatch[] {
+  const heard = normalize(spoken).split(' ').filter(Boolean);
+  const target = normalize(expected).split(' ').filter(Boolean);
+  const pool = [...heard];
+
+  return target.map((word) => {
+    const at = pool.findIndex(
+      (candidate) =>
+        candidate === word ||
+        (word.length >= 5 && similarity(candidate, word) >= DEFAULT_THRESHOLD)
+    );
+    if (at === -1) return { word, heard: false };
+    // Each spoken word can only account for one expected word.
+    pool.splice(at, 1);
+    return { word, heard: true };
+  });
+}
+
+/**
+ * Fill in part of an answer, as a step between meeting a word and recalling it
+ * cold. Speak fades its scaffolding the same way, covering more of a sentence
+ * each time rather than switching from shown to hidden.
+ *
+ * `revealed` is the share of each word left visible, from 0 to 1. Letters are
+ * kept from the start, since that is what a learner reaches for first.
+ */
+export function maskAnswer(answer: string, revealed = 0.4): string {
+  return answer
+    .split(' ')
+    .map((word) => {
+      const characters = [...word];
+      if (characters.length <= 1) return word;
+      const keep = Math.max(1, Math.round(characters.length * revealed));
+      return (
+        characters.slice(0, keep).join('') +
+        characters
+          .slice(keep)
+          .map((character) => (/\s/.test(character) ? character : '·'))
+          .join('')
+      );
+    })
+    .join(' ');
+}

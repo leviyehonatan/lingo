@@ -266,28 +266,61 @@ are put back and a card count would climb under the learner. A word is finished
 when it has no appearance left ahead of it. The verdict says when a word is
 coming back, so its return is expected.
 
+### D12 — The ladder follows a streak, and a miss resets it (2026-09-06)
+
+P2, and the substance of P1. The interval came from a lifetime count of
+reviews, so a word answered ten times and then forgotten went straight back to a
+long interval the moment it was recalled once. It now comes from the current run
+of recalls: a miss ends the run and sends the word to the bottom of its ladder,
+a recall extends it, and a half recall holds position without earning a longer
+wait. Babbel's scheduler does the same, sending a missed item back to the next
+day whatever its history.
+
+`WordProgress` also stores the run as it stood before the last answer. Without
+it a correction cannot be applied properly: a miss has already destroyed the run
+it replaced, so overturning that miss had no way back to where the word stood.
+
+The three grades stay. Only their effect on the schedule changed.
+
+### D13 — The recall window is enforced (2026-09-06)
+
+P7. A review gets ten seconds. The countdown stays hidden until the last few,
+so it does not rush a learner who is answering perfectly well, and running out
+is not a failure: it offers the same two honest choices a mishearing offers,
+because hesitating and forgetting are not the same thing. It does not run while
+a word is being met, since that is not a test.
+
+### D14 — The rest of the assessed items (2026-09-06)
+
+**Per-word feedback.** A spoken answer is graded as a whole, but the verdict now
+shows which of its words were heard, struck through where they were not. Speak
+does this and it is far more use on a phrase than a single verdict. It appears
+only after grading, where the answer is already on screen: showing it during the
+question would give the answer away.
+
+**A fading scaffold.** A word met earlier in the same sitting is asked with the
+start of its answer available behind a hint, rather than cold. Meeting a word
+and then being asked for it with nothing at all is a cliff, and Speak covers its
+sentences progressively for the same reason.
+
+**The learner decides how strictly it listens, and whether it listens.**
+Forgiving, normal and strict map to grading thresholds; a switch says the
+learner cannot speak right now and takes the microphone away for the session.
+Rosetta Stone has both. Round length is a setting too, which is what finally
+makes the daily goal reachable.
+
+**Being unheard is diagnosed.** After three unheard attempts the card says so,
+suggests what to check, and offers to continue without speaking, rather than
+only recording a failure.
+
 ## Proposed, not yet decided
 
-### P1 — Pass or fail with a reset, instead of a three-way status
+### P1 — Collapse the three grades into pass and fail
 
-Now supported from outside the book as well: Babbel's scheduler resets a missed
-item to the next day.
-
-The method grades a review as pass or fail, and a fail returns the card to the
-shortest interval. We store `known`, `learning` and `unknown` and never reset.
-Adopting this touches `src/lib/progress.ts`, the API contract and the filter UI,
-so it is a real change rather than a rename.
-
-### P2 — Ladder position from a streak, not from total review count
-
-Now the natural next step: words come back inside a sitting, so a failure that
-resets the ladder has somewhere to send them.
-
-`reviewInterval` indexes the ladder by how many times a word has ever been
-reviewed. A word answered correctly many times, then failed, jumps straight back
-to a long interval on its next pass. Position should come from the current run
-of successes. This is arguably a bug against the intent of the existing code and
-could be fixed on its own, ahead of any larger redesign.
+The reset landed with D12, so what is left of P1 is only the shape of the
+grades. The method wants two, and ours are three. Worth deciding on evidence
+now that the log records which grade was chosen: if the middle one is rarely
+used, or used where a pass belongs, it should go.
 
 ### P3 — Cards carry meaning, not a translation
 
@@ -315,8 +348,3 @@ schedule yet. The obvious first uses: treat a word with lapses as harder and
 shorten its ladder, and treat a very fast answer as a signal the interval was
 too short, which is the one thing the method says a third grade should mean.
 
-### P7 — Enforce the recall window
-
-The method gives a review five to ten seconds. Nothing counts that down yet, and
-nothing ends a card the learner is staring at. This is the next piece of the
-guided session, and the natural place for the voice loop to attach.

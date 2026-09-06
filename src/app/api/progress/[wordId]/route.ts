@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
-import { computeNextReview, isWordStatus } from '@/lib/progress';
+import { computeNextReview, isWordStatus, nextStreak } from '@/lib/progress';
 import { isLapse, parseTelemetry } from '@/lib/telemetry';
 import type { UpdateProgressResponse } from '@/lib/api-types';
 
@@ -13,6 +13,9 @@ export const runtime = 'nodejs';
  * The client sends only the status it just gave the word. The review count,
  * the review time and the next due date are all decided here, so the schedule
  * cannot be forged or skewed by a stale client clock.
+ *
+ * The interval comes from the word's streak of recalls, so a miss sends it back
+ * to the bottom of its ladder however many times it has been answered before.
  *
  * With `correction: true` the body replaces the review that was just recorded
  * instead of adding another one. The learner overturning a verdict changed
@@ -59,7 +62,14 @@ export async function PUT(
   const userId = session.user.id;
   const existing = await prisma.wordProgress.findUnique({
     where: { wordId_userId: { wordId, userId } },
-    select: { reviewCount: true, seenCount: true, lapses: true, status: true },
+    select: {
+      reviewCount: true,
+      seenCount: true,
+      lapses: true,
+      status: true,
+      streak: true,
+      previousStreak: true,
+    },
   });
 
   const now = Date.now();
@@ -69,7 +79,14 @@ export async function PUT(
   const reviewCount = correction
     ? Math.max(existing?.reviewCount ?? 0, 1)
     : (existing?.reviewCount ?? 0) + 1;
-  const nextReview = computeNextReview(status, reviewCount, now);
+
+  // A correction re-grades the answer already recorded, so it is applied to the
+  // run as it stood *before* that answer. Reading back from the current streak
+  // would not work: a miss resets it to zero and destroys what it replaced.
+  const runBefore = correction ? (existing?.previousStreak ?? 0) : (existing?.streak ?? 0);
+  const streak = nextStreak(runBefore, status);
+  const previousStreak = runBefore;
+  const nextReview = computeNextReview(status, streak, now);
 
   // A correction re-grades a card the learner has already been shown, so it is
   // not another sighting. A lapse is judged against the status being replaced.
@@ -88,6 +105,8 @@ export async function PUT(
         reviewCount,
         seenCount,
         lapses,
+        streak,
+        previousStreak,
         lastReviewed: BigInt(now),
         nextReview: BigInt(nextReview),
       },
@@ -98,6 +117,8 @@ export async function PUT(
         reviewCount,
         seenCount,
         lapses,
+        streak,
+        previousStreak,
         lastReviewed: BigInt(now),
         nextReview: BigInt(nextReview),
       },

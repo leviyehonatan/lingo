@@ -29,6 +29,11 @@ import {
   resetProgress,
 } from '@/lib/api';
 import type { LearnerStats } from '@/lib/stats';
+import {
+  readPreferences,
+  writePreferences,
+  type Preferences,
+} from '@/lib/preferences';
 import type { ReviewSource } from '@/lib/telemetry';
 import type { LevelData, ProgressData } from '@/lib/api';
 import { computeStats, filterWordIds, shuffle } from '@/lib/study';
@@ -70,29 +75,8 @@ import {
 } from '@/components/study/modes';
 import { he as t } from '@/i18n/translations';
 
-const HANDS_FREE_KEY = 'lingo-hands-free';
-
-/** The stored preference, or off when there is nowhere to have stored it. */
-function readHandsFree(): boolean {
-  try {
-    return typeof window !== 'undefined' && localStorage.getItem(HANDS_FREE_KEY) === 'on';
-  } catch {
-    return false;
-  }
-}
-
 /** Whether the browser can hear is fixed for the life of the page. */
 const NEVER_CHANGES = () => () => {};
-
-/** How many cards one sitting runs, before the learner is told they are done. */
-const SESSION_SIZE = 20;
-
-/**
- * How many unmet words one sitting introduces. The method warns that new cards
- * are what generate tomorrow's reviews, so this is the tap that has to stay
- * half closed.
- */
-const NEW_PER_SESSION = 5;
 
 /**
  * A clock that ticks, so the counts on the setup screen stay current while it
@@ -149,15 +133,18 @@ function StudyPageInner() {
     () => false
   );
 
-  // Hands-free: the app speaks, listens and moves on without being clicked.
-  // Remembered per browser, since it is a way of working rather than a setting
-  // for one session.
-  const [handsFree, setHandsFree] = useState(readHandsFree);
-  const toggleHandsFree = useCallback((on: boolean) => {
-    setHandsFree(on);
-    try {
-      localStorage.setItem(HANDS_FREE_KEY, on ? 'on' : 'off');
-    } catch {}
+  // How the learner wants the session to behave: hands-free, how strictly it
+  // listens, whether they can speak at all right now, and how long a sitting
+  // runs. Remembered per browser.
+  const [preferences, setPreferences] = useState(readPreferences);
+  /** Speaking needs a browser that can hear and a learner willing to talk. */
+  const speaking = canListen && !preferences.silent;
+  const updatePreferences = useCallback((change: Partial<Preferences>) => {
+    setPreferences((previous) => {
+      const next = { ...previous, ...change };
+      writePreferences(next);
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -252,10 +239,10 @@ function StudyPageInner() {
         wordIds,
         byWord: progress.byWord,
         now,
-        newLimit: NEW_PER_SESSION,
-        size: SESSION_SIZE,
+        newLimit: preferences.newPerSession,
+        size: preferences.sessionSize,
       }),
-    [wordIds, progress.byWord, now]
+    [wordIds, progress.byWord, now, preferences.newPerSession, preferences.sessionSize]
   );
 
   const buildCards = useCallback((): SessionCard[] => {
@@ -283,7 +270,7 @@ function StudyPageInner() {
               ).has(w.id)
             )
           )
-            .slice(0, SESSION_SIZE)
+            .slice(0, preferences.sessionSize)
             .map((w) => ({ id: w.id, mode: modeFor(progress.byWord, w.id) }));
 
     // Words come back by being put back into the queue as the sitting runs,
@@ -292,7 +279,7 @@ function StudyPageInner() {
     return chosen
       .map((planned) => toCard(planned.id, planned.mode))
       .filter((card): card is SessionCard => card !== null);
-  }, [words, wordIds, progress.byWord, deck, direction, plan]);
+  }, [words, wordIds, progress.byWord, deck, direction, plan, preferences.sessionSize]);
 
   const beginSession = useCallback(() => {
     setSession(startSession(buildCards()));
@@ -428,12 +415,12 @@ function StudyPageInner() {
    * it falls back to revealing and self-grading.
    */
   const handleShowAnswer = useCallback(() => {
-    if (canListen) {
+    if (speaking) {
       void grade('unknown', 'reveal');
     } else {
       setSession((prev) => (prev ? revealAnswer(prev) : prev));
     }
-  }, [canListen, grade]);
+  }, [speaking, grade]);
 
   /**
    * Speak the Hungarian side of the card, whichever side that is.
@@ -529,10 +516,10 @@ function StudyPageInner() {
           onActivityChange={setActivity}
           todayCount={progress.todayCount}
           dailyGoal={DAILY_GOAL}
-          sessionSize={SESSION_SIZE}
+          sessionSize={preferences.sessionSize}
           canListen={canListen}
-          handsFree={handsFree}
-          onHandsFreeChange={toggleHandsFree}
+          preferences={preferences}
+          onPreferencesChange={updatePreferences}
           stats={learnerStats}
           onStart={beginSession}
           onReset={handleReset}
@@ -554,6 +541,11 @@ function StudyPageInner() {
   }
 
   const { settled, total } = sessionProgress(session);
+  // A word met earlier in this sitting is asked with the start of its answer
+  // available, rather than cold.
+  const metThisSitting = new Set(
+    session.cards.filter((queued) => queued.mode === 'teach').map((queued) => queued.id)
+  );
   // Quiz and writing ask the question themselves; every activity shares the
   // reveal and the verdict that follow. A word being met for the first time is
   // never asked, whatever the activity: there is nothing to answer with yet.
@@ -594,12 +586,15 @@ function StudyPageInner() {
             .slice(session.index + 1)
             .some((queued) => queued.id === card.id)}
           direction={direction}
-          canListen={canListen}
-          handsFree={handsFree && canListen}
+          canListen={speaking}
+          handsFree={preferences.handsFree && speaking}
+          strictness={preferences.strictness}
+          hinted={metThisSitting.has(card.id)}
           onSpeak={handleSpoken}
           onSpeakPractice={handlePractice}
           onHear={speak}
           onShowAnswer={handleShowAnswer}
+          onGoSilent={() => updatePreferences({ silent: true })}
           onTaught={handleTaught}
           onGrade={(status) => void grade(status)}
           onOverride={(status) => void override(status)}

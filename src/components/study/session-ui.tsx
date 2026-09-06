@@ -12,6 +12,15 @@ import { useEffect, useRef, useState } from 'react';
 import type { WordStatus } from '@/lib/progress';
 import type { FilterMode } from '@/lib/study';
 import { humanizeInterval } from '@/lib/interval';
+import { RECALL_WINDOW_MS, secondsLeft, windowState } from '@/lib/recall-window';
+import { maskAnswer, matchedWords } from '@/lib/answer-match';
+import {
+  SESSION_SIZES,
+  STRICTNESS_LEVELS,
+  STRICTNESS_THRESHOLD,
+  type Preferences,
+  type Strictness,
+} from '@/lib/preferences';
 import type { SessionPlan } from '@/lib/plan';
 import type { LearnerStats } from '@/lib/stats';
 import type {
@@ -91,8 +100,8 @@ export function SessionSetup({
   dailyGoal,
   sessionSize,
   canListen,
-  handsFree,
-  onHandsFreeChange,
+  preferences,
+  onPreferencesChange,
   stats,
   onStart,
   onReset,
@@ -111,9 +120,10 @@ export function SessionSetup({
   todayCount: number;
   dailyGoal: number;
   sessionSize: number;
+  /** Whether the browser can hear at all, before the learner's own choice. */
   canListen: boolean;
-  handsFree: boolean;
-  onHandsFreeChange: (on: boolean) => void;
+  preferences: Preferences;
+  onPreferencesChange: (change: Partial<Preferences>) => void;
   /** How the learner is doing, or null while it is still being fetched. */
   stats: LearnerStats | null;
   onStart: () => void;
@@ -174,7 +184,7 @@ export function SessionSetup({
             <p className="mt-3 text-xs text-slate-500">
               {direction === 'forward' ? t.directionForward : t.directionReverse}
             </p>
-            {canListen && (
+            {canListen && !preferences.silent && (
               <label
                 data-hands-free
                 className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-700 p-3"
@@ -182,8 +192,8 @@ export function SessionSetup({
                 <input
                   type="checkbox"
                   data-hands-free-toggle
-                  checked={handsFree}
-                  onChange={(e) => onHandsFreeChange(e.target.checked)}
+                  checked={preferences.handsFree}
+                  onChange={(e) => onPreferencesChange({ handsFree: e.target.checked })}
                   className="mt-0.5 accent-indigo-600"
                 />
                 <span>
@@ -246,6 +256,58 @@ export function SessionSetup({
                   data-deck={f}
                   label={DECK_LABELS[f]}
                   hint={t.deckCount(deckCounts[f])}
+                />
+              ))}
+            </div>
+          </Fieldset>
+
+          {canListen && (
+            <Fieldset legend={t.strictness}>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {STRICTNESS_LEVELS.map((level) => (
+                  <Choice
+                    key={level}
+                    selected={preferences.strictness === level}
+                    onClick={() => onPreferencesChange({ strictness: level })}
+                    data-strictness={level}
+                    label={
+                      level === 'easy'
+                        ? t.strictnessEasy
+                        : level === 'normal'
+                          ? t.strictnessNormal
+                          : t.strictnessStrict
+                    }
+                  />
+                ))}
+              </div>
+              <label
+                data-silent
+                className="mt-2 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-700 p-3"
+              >
+                <input
+                  type="checkbox"
+                  data-silent-toggle
+                  checked={preferences.silent}
+                  onChange={(e) => onPreferencesChange({ silent: e.target.checked })}
+                  className="mt-0.5 accent-indigo-600"
+                />
+                <span>
+                  <span className="block text-sm font-medium">{t.silentMode}</span>
+                  <span className="block text-xs text-slate-400">{t.silentModeHint}</span>
+                </span>
+              </label>
+            </Fieldset>
+          )}
+
+          <Fieldset legend={t.sessionLength}>
+            <div className="grid gap-2 sm:grid-cols-4">
+              {SESSION_SIZES.map((size) => (
+                <Choice
+                  key={size}
+                  selected={preferences.sessionSize === size}
+                  onClick={() => onPreferencesChange({ sessionSize: size })}
+                  data-size={size}
+                  label={t.deckCount(size)}
                 />
               ))}
             </div>
@@ -445,10 +507,13 @@ export function GuidedCard({
   direction,
   canListen,
   handsFree,
+  strictness,
+  hinted,
   onSpeak,
   onSpeakPractice,
   onHear,
   onShowAnswer,
+  onGoSilent,
   onTaught,
   onGrade,
   onOverride,
@@ -465,11 +530,17 @@ export function GuidedCard({
   canListen: boolean;
   /** Listen without being asked, and move on once the learner has spoken. */
   handsFree: boolean;
+  strictness: Strictness;
+  /** True for a word met in this same sitting, which gets a look at the start
+   * of its answer rather than being asked for it cold. */
+  hinted: boolean;
   onSpeak: (result: SpokenResult) => void;
   onSpeakPractice: (result: SpokenResult) => void;
   /** Say the Hungarian aloud. */
   onHear: () => void;
   onShowAnswer: () => void;
+  /** The learner giving up on being heard, for now. */
+  onGoSilent: () => void;
   /** A new word has been met; it enters the schedule rather than being graded. */
   onTaught: () => void;
   onGrade: (status: WordStatus) => void;
@@ -491,9 +562,23 @@ export function GuidedCard({
    */
   const [missed, setMissed] = useState<SpokenResult | null>(null);
   const [attempts, setAttempts] = useState(0);
+
+  /**
+   * The recall window. It runs while the learner is being asked and nothing
+   * else is happening, and running out counts as a miss rather than a failure:
+   * the card stays, with the same choices a mishearing offers.
+   */
+  const [timedOut, setTimedOut] = useState(false);
+  const asking = stage === 'prompt' && card.mode === 'review';
+  useEffect(() => {
+    if (!asking || timedOut || missed) return;
+    const id = setTimeout(() => setTimedOut(true), RECALL_WINDOW_MS);
+    return () => clearTimeout(id);
+  }, [asking, timedOut, missed, card.id]);
   const spent = attempts >= MAX_SPOKEN_ATTEMPTS;
 
   const handleSpeak = (result: SpokenResult) => {
+    setTimedOut(false);
     setMissed(result.accepted ? null : result);
     if (!result.accepted) {
       const used = attempts + 1;
@@ -625,6 +710,43 @@ export function GuidedCard({
         )}
       </div>
 
+      {asking && hinted && <AnswerHint answer={card.answer} rtl={!promptHu} />}
+
+      {asking && <RecallCountdown cardId={card.id} stopped={timedOut || Boolean(missed)} />}
+
+      {asking && (
+        <div className="mt-4">
+        {timedOut && !missed && (
+          <div
+            data-time-up
+            className="rounded-xl border border-amber-700/50 bg-amber-900/10 p-3"
+          >
+            <p className="text-center text-xs text-amber-300">{t.timeUp}</p>
+            <p className="mt-1 text-center text-[0.7rem] text-slate-500">
+              {t.timeUpHint}
+            </p>
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              <button
+                data-miss-knew
+                onClick={() => onGrade('known')}
+                className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-emerald-300 transition hover:border-emerald-500"
+              >
+                {t.missKnew}
+              </button>
+              <button
+                data-miss-didnt
+                onClick={() => onGrade('unknown')}
+                className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-red-300 transition hover:border-red-500"
+              >
+                {t.missDidnt}
+              </button>
+            </div>
+          </div>
+        )}
+
+        </div>
+      )}
+
       {teaching && (
         <div className="mt-6 grid gap-3">
           {canListen ? (
@@ -639,6 +761,7 @@ export function GuidedCard({
                 label={t.teachRepeatHu}
                 hint={t.teachRepeatHint}
                 listeningLabel={t.listeningRepeat}
+                threshold={STRICTNESS_THRESHOLD[strictness]}
                 graded
                 dataAttr="data-teach-repeat"
                 autoStartDelayMs={
@@ -686,6 +809,7 @@ export function GuidedCard({
                 label={answerIsHebrew ? t.speakMeaningHe : t.speakWordHu}
                 hint={t.speakAnswerHint}
                 listeningLabel={answerIsHebrew ? t.listeningMeaning : t.listeningWord}
+                threshold={STRICTNESS_THRESHOLD[strictness]}
                 graded
                 dataAttr="data-speak-answer"
                 autoStartDelayMs={
@@ -694,6 +818,25 @@ export function GuidedCard({
                 autoStartKey={attempts}
                 onResult={handleSpeak}
               />
+
+              {spent && (
+                <div
+                  data-cannot-hear
+                  className="rounded-xl border border-slate-700 bg-slate-800/60 p-3"
+                >
+                  <p className="text-center text-xs text-slate-300">{t.cannotHear}</p>
+                  <p className="mt-1 text-center text-[0.7rem] text-slate-500">
+                    {t.cannotHearHints}
+                  </p>
+                  <button
+                    data-go-silent
+                    onClick={onGoSilent}
+                    className="mt-3 w-full rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition hover:border-slate-500"
+                  >
+                    {t.cannotHearSwitch}
+                  </button>
+                </div>
+              )}
 
               {missed && (
                 <div
@@ -783,6 +926,7 @@ export function GuidedCard({
           <Verdict
             answer={answer}
             heard={heard}
+            expected={card.answer}
             comesBack={comesBack}
             onOverride={onOverride}
             onNext={onNext}
@@ -849,15 +993,84 @@ function Introduced({
   );
 }
 
+/**
+ * The last seconds of the recall window, drawn only once they are worth
+ * knowing about. Earlier than that it would rush a learner who is answering
+ * perfectly well.
+ */
+/**
+ * The start of the answer, for a word met earlier in this same sitting.
+ *
+ * Speak fades its scaffolding rather than switching it off: the sentence is
+ * shown, then progressively covered, then asked for cold. This is the middle
+ * rung, and it exists because meeting a word and then being asked for it with
+ * nothing at all is a cliff.
+ */
+function AnswerHint({ answer, rtl }: { answer: string; rtl: boolean }) {
+  const [shown, setShown] = useState(false);
+
+  if (!shown) {
+    return (
+      <button
+        data-hint-show
+        onClick={() => setShown(true)}
+        className="mx-auto mt-4 block rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-400 transition hover:border-slate-500"
+      >
+        {t.hintShow}
+      </button>
+    );
+  }
+
+  return (
+    <p data-hint className="mt-4 text-center text-sm text-slate-400">
+      <span className="text-slate-600">{t.hintLabel}: </span>
+      <span className="font-mono text-lg text-slate-300" dir={rtl ? 'rtl' : 'ltr'}>
+        {maskAnswer(answer)}
+      </span>
+    </p>
+  );
+}
+
+function RecallCountdown({ cardId, stopped }: { cardId: string; stopped: boolean }) {
+  const [startedAt] = useState(() => Date.now());
+  const [now, setNow] = useState(startedAt);
+
+  useEffect(() => {
+    if (stopped) return;
+    const id = setInterval(() => setNow(Date.now()), 200);
+    return () => clearInterval(id);
+  }, [stopped, cardId]);
+
+  const state = windowState(stopped ? null : startedAt, now);
+  if (!state.visible) return null;
+
+  return (
+    <div data-recall-window className="mt-4">
+      <div className="h-1 overflow-hidden rounded-full bg-slate-800">
+        <div
+          className="h-full bg-amber-500 transition-all duration-200"
+          style={{ width: `${Math.round(state.fraction * 100)}%` }}
+        />
+      </div>
+      <p className="mt-1 text-center text-[0.7rem] text-slate-500">
+        {t.windowHint(secondsLeft(state))}
+      </p>
+    </div>
+  );
+}
+
 function Verdict({
   answer,
   heard,
+  expected,
   comesBack,
   onOverride,
   onNext,
 }: {
   answer: SessionAnswer;
   heard: SessionAttempt | undefined;
+  /** The answer the utterance was judged against, for per-word feedback. */
+  expected: string;
   /** True when this word is queued to be asked again before the round ends. */
   comesBack: boolean;
   onOverride: (status: WordStatus) => void;
@@ -871,6 +1084,19 @@ function Verdict({
       {heard && (
         <p data-verdict-heard className="mb-2 text-center text-xs text-slate-400">
           {heard.heard ? t.verdictHeard(heard.heard) : t.verdictHeardNothing}
+        </p>
+      )}
+      {heard?.heard && expected && (
+        <p data-word-feedback className="mb-2 text-center text-sm">
+          {matchedWords(heard.heard, expected).map((match, index) => (
+            <span
+              key={`${match.word}-${index}`}
+              data-word-heard={match.heard ? 'true' : 'false'}
+              className={`mx-1 ${match.heard ? 'text-emerald-300' : 'text-slate-500 line-through'}`}
+            >
+              {match.word}
+            </span>
+          ))}
         </p>
       )}
       <p

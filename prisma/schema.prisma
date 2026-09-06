@@ -114,6 +114,14 @@ model WordProgress {
   /// How often a word the learner had known came back unknown. The count that
   /// says a word is not sticking, which `status` alone cannot show.
   lapses       Int      @default(0)
+  /// The current run of recalls, which is what positions the word on its
+  /// interval ladder. A miss ends the run and sends the word back to the
+  /// bottom, where `reviewCount` would have kept it near the top.
+  streak       Int      @default(0)
+  /// The run as it stood before the last answer. A learner overturning a
+  /// verdict is re-grading that answer, and a miss has already destroyed the
+  /// run it replaced, so the previous value is the only way back.
+  previousStreak Int    @default(0)
   word         Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
