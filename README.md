@@ -59,6 +59,9 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run dev` | Start the dev server |
 | `npm run build` / `npm run start` | Production build / serve |
 | `npm run lint` | Run ESLint |
+| `npm run typecheck` | Generate route types, then `tsc --noEmit` |
+| `npm test` | Vitest unit tests (`npm run test:watch` to iterate) |
+| `npm run test:e2e` | Playwright end-to-end tests (needs Postgres, see Testing) |
 | `npm run seed` | Upsert the `hu-he` pair, levels A1–B1, topics, and words |
 
 ## Project structure
@@ -68,9 +71,53 @@ prisma/schema.prisma      # PostgreSQL schema: User, LanguagePair, Level, Topic,
 src/app/                  # App Router: home, /[pair], /[pair]/study/[topic], /login, API routes
 src/data/                 # Seed vocabulary: levelA1.ts, levelA2.ts, levelB1.ts, types.ts
 src/components/           # TopicsList and other UI
-src/lib/                  # prisma client, auth, API client/types, seed
+src/lib/                  # prisma client, auth, API client/types, pure progress + study logic, seed
 src/i18n/                 # Hebrew UI context + translations
+e2e/                      # Playwright specs and global setup
 ```
+
+## Testing
+
+Unit tests run under Vitest and live next to the code they cover as `*.test.ts`:
+
+```bash
+npm test
+```
+
+They cover the pure spaced-repetition logic in `src/lib/progress.ts`, the study
+filters and counters in `src/lib/study.ts`, and the progress API routes with
+`@/lib/prisma` and `@/lib/auth` mocked. No database is needed.
+
+### End-to-end
+
+The Playwright suite in `e2e/` drives a real dev server against a real Postgres
+and asserts that studying actually persists. It needs a throwaway database that
+you create once yourself:
+
+```bash
+createdb lingo_e2e
+DATABASE_URL=postgresql://$USER@localhost:5432/lingo_e2e npx prisma db push
+npx playwright install chromium
+```
+
+Then run the suite, pointing it at that database:
+
+```bash
+E2E_DATABASE_URL=postgresql://$USER@localhost:5432/lingo_e2e npm run test:e2e
+```
+
+The global setup seeds the vocabulary if it is missing, creates a test user,
+and clears only that user's rows. It never drops or migrates a database, so a
+schema change means re-running `prisma db push` by hand.
+
+Sign-in is Google-only, so the setup mints the same Auth.js JWT session cookie
+the app would have issued rather than driving an OAuth flow. Override
+`AUTH_SECRET` and `E2E_PORT` if the defaults clash with anything local.
+
+CI runs the same suite in its own job against a throwaway Postgres service
+container, pushing the schema itself before the tests. Because
+`deploy-lingo.yml` gates on this whole workflow, a red e2e run now blocks a
+deploy. A failing run uploads the Playwright HTML report as a job artifact.
 
 ## Deployment
 

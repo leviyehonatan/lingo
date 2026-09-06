@@ -1,3 +1,5 @@
+import type { WordStatus } from './progress';
+
 export interface WordData {
   id: string;
   hungarian: string;
@@ -7,7 +9,7 @@ export interface WordData {
 export interface TopicData {
   id: string;
   name: string;
-  name_he: string;
+  nameHe: string;
   words: WordData[];
 }
 
@@ -30,7 +32,7 @@ export interface LangPair {
 
 export interface ProgressEntry {
   word_id: string;
-  status: 'known' | 'unknown' | 'learning';
+  status: WordStatus;
   last_reviewed: number;
   review_count: number;
   next_review: number;

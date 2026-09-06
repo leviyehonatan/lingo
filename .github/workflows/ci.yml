@@ -36,3 +36,72 @@ jobs:
       # that are otherwise only produced by `next dev` / `next build`.
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+  # The Playwright suite drives a real dev server against a real Postgres.
+  # deploy-lingo.yml runs this whole workflow as its gate, so a red e2e run
+  # now blocks a deploy just as lint and typecheck do.
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lingo_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # A throwaway service container, torn down with the job.
+      E2E_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lingo_e2e
+      AUTH_SECRET: e2e-secret-not-for-production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      # The e2e global setup deliberately never migrates a database, so the
+      # schema has to be pushed here. Safe against a container that is created
+      # empty and thrown away at the end of the job.
+      - name: Push the schema into the throwaway database
+        run: npx prisma db push
+        env:
+          DATABASE_URL: ${{ env.E2E_DATABASE_URL }}
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      # The global setup seeds the vocabulary into the empty database on the
+      # first run, then signs itself in with a minted session cookie.
+      - name: E2E tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
