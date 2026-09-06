@@ -72,3 +72,28 @@ export async function endSession(page: Page) {
   await page.locator('[data-summary-again]').click();
   await expect(page.locator('[data-session-setup]')).toBeVisible();
 }
+
+/**
+ * Take a moment before answering, so the schedule does not read the answer as
+ * effortless.
+ *
+ * An answer under a couple of seconds is evidence the interval was too short,
+ * and stretches it. A test that clicks in milliseconds looks exactly like a
+ * learner who knew the word instantly, which is not what these cases are about.
+ *
+ * The page's clock is moved rather than the test being made to wait: the app
+ * measures the delay with `Date.now()` inside the page, so this is the same
+ * measurement a real pause would produce, and it costs no time. Needs
+ * `useTestClock` in the spec's setup.
+ */
+export async function answerAtHumanSpeed(page: Page, ms = 3000) {
+  await page.clock.fastForward(ms);
+}
+
+/**
+ * Install the controllable clock. Call before navigating, so the page reads it
+ * from the start.
+ */
+export async function useTestClock(page: Page) {
+  await page.clock.install();
+}

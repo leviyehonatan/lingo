@@ -100,3 +100,72 @@ describe('modeFor', () => {
     expect(modeFor(byWord, 'b')).toBe('review');
   });
 });
+
+describe('words that look alike are not met together', () => {
+  const numbers = ['one', 'two', 'three', 'four'];
+  // "one" and "two" clash; nothing else does.
+  const confusable = (a: string, b: string) =>
+    [a, b].every((id) => id === 'one' || id === 'two');
+
+  const meetAll = (over: Partial<Parameters<typeof planSession>[0]> = {}) =>
+    planSession({
+      wordIds: numbers,
+      byWord: {},
+      now: NOW,
+      newLimit: 4,
+      size: 20,
+      confusable,
+      ...over,
+    });
+
+  it('skips a new word that clashes with one already chosen', () => {
+    expect(meetAll().cards.map((card) => card.id)).toEqual(['one', 'three', 'four']);
+  });
+
+  it('still fills the sitting from words that do not clash', () => {
+    expect(meetAll({ newLimit: 2 }).cards.map((card) => card.id)).toEqual([
+      'one',
+      'three',
+    ]);
+  });
+
+  it('meets one anyway rather than teaching nothing at all', () => {
+    const everythingClashes = () => true;
+    const plan = planSession({
+      wordIds: numbers,
+      byWord: {},
+      now: NOW,
+      newLimit: 3,
+      size: 20,
+      confusable: everythingClashes,
+    });
+    expect(plan.cards.map((card) => card.id)).toEqual(['one']);
+  });
+
+  it('leaves the plan alone when nothing is said about confusability', () => {
+    const plan = planSession({
+      wordIds: numbers,
+      byWord: {},
+      now: NOW,
+      newLimit: 4,
+      size: 20,
+    });
+    expect(plan.cards).toHaveLength(4);
+  });
+
+  it('never holds back a review, however alike two due words are', () => {
+    const due: ProgressByWord = {
+      one: { status: 'known', nextReview: NOW - 1000 },
+      two: { status: 'known', nextReview: NOW - 1000 },
+    };
+    const plan = planSession({
+      wordIds: ['one', 'two'],
+      byWord: due,
+      now: NOW,
+      newLimit: 5,
+      size: 20,
+      confusable,
+    });
+    expect(plan.cards).toHaveLength(2);
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeNextReview, dayKey, isDue, isWordStatus, nextStreak, reviewInterval } from './progress';
+import { computeNextReview, dayKey, difficultyFactor, isDue, isWordStatus, nextStreak, reviewInterval } from './progress';
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -135,5 +135,59 @@ describe('a forgotten word starts its climb again', () => {
     expect(reviewInterval('known', afterRecall)).toBe(DAY);
     // Which is where it would have been on its very first recall.
     expect(reviewInterval('known', 1)).toBe(DAY);
+  });
+});
+
+describe('difficultyFactor', () => {
+  it('leaves a word with no history alone', () => {
+    expect(difficultyFactor('known')).toBe(1);
+    expect(difficultyFactor('known', { lapses: 0, latencyMs: 9000 })).toBe(1);
+  });
+
+  it('shortens the wait for a word that keeps being forgotten', () => {
+    expect(difficultyFactor('known', { lapses: 1 })).toBeCloseTo(0.75);
+    expect(difficultyFactor('known', { lapses: 2 })).toBeCloseTo(0.5625);
+  });
+
+  it('stops shortening, so a hard word does not collapse to nothing', () => {
+    expect(difficultyFactor('known', { lapses: 20 })).toBe(0.4);
+  });
+
+  it('stretches the wait when a recall was effortless', () => {
+    expect(difficultyFactor('known', { latencyMs: 900 })).toBeCloseTo(1.3);
+  });
+
+  it('reads nothing into a quick answer that was not a recall', () => {
+    expect(difficultyFactor('unknown', { latencyMs: 900 })).toBe(1);
+    expect(difficultyFactor('learning', { latencyMs: 900 })).toBe(1);
+  });
+
+  it('ignores a missing or nonsensical timing', () => {
+    expect(difficultyFactor('known', { latencyMs: null })).toBe(1);
+    expect(difficultyFactor('known', { latencyMs: -50 })).toBe(1);
+  });
+
+  it('lets a hard word that is suddenly easy pull back up', () => {
+    expect(difficultyFactor('known', { lapses: 1, latencyMs: 800 })).toBeCloseTo(0.975);
+  });
+});
+
+describe('reviewInterval with signals', () => {
+  it('brings a repeatedly forgotten word back sooner', () => {
+    const plain = reviewInterval('known', 3);
+    expect(reviewInterval('known', 3, { lapses: 2 })).toBeLessThan(plain);
+  });
+
+  it('pushes an effortless recall further out', () => {
+    const plain = reviewInterval('known', 2);
+    expect(reviewInterval('known', 2, { latencyMs: 500 })).toBeGreaterThan(plain);
+  });
+
+  it('never goes below the ladder it belongs to', () => {
+    expect(reviewInterval('known', 1, { lapses: 9 })).toBe(DAY);
+  });
+
+  it('never goes beyond the end of the ladder', () => {
+    expect(reviewInterval('known', 99, { latencyMs: 100 })).toBe(90 * DAY);
   });
 });

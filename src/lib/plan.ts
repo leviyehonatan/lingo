@@ -38,6 +38,16 @@ export interface PlanOptions {
   newLimit: number;
   /** Cap on the sitting as a whole. */
   size: number;
+  /**
+   * Whether two words are too alike to meet on the same day.
+   *
+   * The method is blunt about this: learning six and seven together, or green
+   * and yellow, is what makes them stick to each other instead of to their
+   * meanings. Our words are grouped by topic, which is exactly the arrangement
+   * that produces those pairs, so the plan keeps them apart even though the
+   * pool cannot.
+   */
+  confusable?: (a: string, b: string) => boolean;
 }
 
 /**
@@ -55,13 +65,8 @@ function hasBeenMet(byWord: ProgressByWord, id: string): boolean {
  * because meeting new words is the reward for clearing them rather than a way
  * to avoid them.
  */
-export function planSession({
-  wordIds,
-  byWord,
-  now,
-  newLimit,
-  size,
-}: PlanOptions): SessionPlan {
+export function planSession(options: PlanOptions): SessionPlan {
+  const { wordIds, byWord, now, newLimit, size } = options;
   const met = wordIds.filter((id) => hasBeenMet(byWord, id));
   const due = met
     .filter((id) => isDue(byWord[id]?.nextReview, now))
@@ -73,7 +78,18 @@ export function planSession({
     .map((id) => ({ id, mode: 'review' as const }));
 
   const room = Math.max(0, Math.min(size - cards.length, newLimit));
-  for (const id of fresh.slice(0, room)) {
+  const introduced: string[] = [];
+  for (const id of fresh) {
+    if (introduced.length >= room) break;
+    const clashes = introduced.some((chosen) => options.confusable?.(chosen, id));
+    if (!clashes) introduced.push(id);
+  }
+  // If every remaining word clashes with one already chosen, meet one anyway:
+  // a sitting with nothing new in it is worse than a pair that look alike.
+  if (introduced.length === 0 && room > 0 && fresh.length > 0) {
+    introduced.push(fresh[0]);
+  }
+  for (const id of introduced) {
     cards.push({ id, mode: 'teach' });
   }
 

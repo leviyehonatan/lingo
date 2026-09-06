@@ -54,6 +54,15 @@ export interface ProgressData {
 
 export interface UpdateProgressResponse {
   nextReview: number;
+  /**
+   * How long the wait is, in milliseconds.
+   *
+   * The absolute time is the server's, and the browser's clock may be minutes
+   * or hours off it, so subtracting one from the other to tell the learner
+   * "back in a day" can produce nonsense. The server knows the delay it just
+   * chose, so it says it.
+   */
+  intervalMs: number;
 }
 
 export interface RecordDailyResponse {

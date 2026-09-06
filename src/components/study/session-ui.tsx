@@ -973,12 +973,10 @@ function Introduced({
         {t.teachRecorded}
       </p>
       <p className="mt-1 text-center text-xs text-slate-400">{t.teachRequeued}</p>
-      {answer.nextReview !== null && (
+      {answer.intervalMs !== null && (
         <p className="mt-1 text-center text-xs text-slate-500">
           <span data-verdict-interval>
-            {t.verdictReturn(
-              formatDelay(t, humanizeInterval(answer.nextReview - answer.answeredAt))
-            )}
+            {t.verdictReturn(formatDelay(t, humanizeInterval(answer.intervalMs)))}
           </span>
         </p>
       )}
@@ -1105,18 +1103,16 @@ function Verdict({
         className={`text-center text-sm font-medium ${verdict.tone}`}
       >
         <span data-verdict-label>{verdict.label}</span>
-        {answer.nextReview !== null && (
+        {answer.intervalMs !== null && (
           <>
             {' · '}
             <span data-verdict-interval className="text-slate-300">
-              {t.verdictReturn(
-                formatDelay(t, humanizeInterval(answer.nextReview - answer.answeredAt))
-              )}
+              {t.verdictReturn(formatDelay(t, humanizeInterval(answer.intervalMs)))}
             </span>
           </>
         )}
       </p>
-      {answer.nextReview === null && (
+      {answer.intervalMs === null && (
         <p className="mt-1 text-center text-xs text-red-400">{t.verdictUnsaved}</p>
       )}
 

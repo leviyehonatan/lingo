@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { STUDY_URL, TOPIC_ID } from './fixtures';
 import { fakeSpeech, say, saySilence } from './speech';
-import { seedWord, words } from './session';
+import { answerAtHumanSpeed, seedWord, useTestClock, words } from './session';
 
 /**
  * Speaking is how a learner demonstrates they know a word, so it decides the
@@ -47,6 +47,7 @@ async function progressRows(page: Page) {
 test.beforeEach(async ({ page }) => {
   await page.request.delete('/api/progress');
   await fakeSpeech(page);
+  await useTestClock(page);
 });
 
 test('the card asks to be answered aloud before it shows anything', async ({ page }) => {
@@ -68,6 +69,7 @@ test('saying the answer marks it known and shows what was heard', async ({ page 
   await startSession(page);
   const answer = await expectedAnswer(page);
 
+  await answerAtHumanSpeed(page);
   await page.locator('[data-speak-answer]').click();
   await say(page, answer);
 

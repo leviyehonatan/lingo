@@ -25,6 +25,12 @@ const cards: SessionCard[] = [
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = 1_700_000_000_000;
 
+/** What the server reports back: when the word returns, and the wait it chose. */
+const schedule = (intervalMs: number) => ({
+  nextReview: NOW + intervalMs,
+  intervalMs,
+});
+
 describe('startSession', () => {
   it('asks the first card', () => {
     const state = startSession(cards);
@@ -57,12 +63,13 @@ describe('one card, start to finish', () => {
     state = revealAnswer(state);
     expect(state.stage).toBe('reveal');
 
-    state = recordAnswer(state, 'known', NOW + DAY, NOW);
+    state = recordAnswer(state, 'known', schedule(DAY), NOW);
     expect(state.stage).toBe('feedback');
     expect(lastAnswer(state)).toEqual({
       cardId: 'a',
       status: 'known',
       nextReview: NOW + DAY,
+      intervalMs: DAY,
       answeredAt: NOW,
       corrected: false,
     });
@@ -80,7 +87,7 @@ describe('one card, start to finish', () => {
 
   it('finishes after the last card', () => {
     let state = startSession([cards[0]]);
-    state = advance(recordAnswer(revealAnswer(state), 'known', NOW + DAY, NOW));
+    state = advance(recordAnswer(revealAnswer(state), 'known', schedule(DAY), NOW));
     expect(state.stage).toBe('done');
     expect(currentCard(state)).toBeUndefined();
   });
@@ -99,14 +106,14 @@ describe('guards', () => {
   });
 
   it('grades straight from the question, for a learner who did not need the answer', () => {
-    const state = recordAnswer(startSession(cards), 'known', NOW + DAY, NOW);
+    const state = recordAnswer(startSession(cards), 'known', schedule(DAY), NOW);
     expect(state.stage).toBe('feedback');
     expect(state.answers).toHaveLength(1);
   });
 
   it('ignores an override when no verdict is on screen', () => {
     const state = startSession(cards);
-    expect(correctAnswer(state, 'known', NOW, NOW)).toBe(state);
+    expect(correctAnswer(state, 'known', schedule(0), NOW)).toBe(state);
   });
 
   it('advancing a finished session changes nothing', () => {
@@ -117,14 +124,15 @@ describe('guards', () => {
 
 describe('correctAnswer', () => {
   it('replaces the verdict without adding a second answer', () => {
-    let state = recordAnswer(revealAnswer(startSession(cards)), 'unknown', NOW + 60_000, NOW);
-    state = correctAnswer(state, 'known', NOW + DAY, NOW);
+    let state = recordAnswer(revealAnswer(startSession(cards)), 'unknown', schedule(60_000), NOW);
+    state = correctAnswer(state, 'known', schedule(DAY), NOW);
 
     expect(state.answers).toHaveLength(1);
     expect(lastAnswer(state)).toEqual({
       cardId: 'a',
       status: 'known',
       nextReview: NOW + DAY,
+      intervalMs: DAY,
       answeredAt: NOW,
       corrected: true,
     });
@@ -134,9 +142,9 @@ describe('correctAnswer', () => {
 describe('summarize', () => {
   it('counts each card once, under its final grade', () => {
     let state = startSession(cards);
-    state = advance(recordAnswer(revealAnswer(state), 'unknown', NOW + 60_000, NOW));
-    state = recordAnswer(revealAnswer(state), 'unknown', NOW + 60_000, NOW);
-    state = correctAnswer(state, 'known', NOW + DAY, NOW);
+    state = advance(recordAnswer(revealAnswer(state), 'unknown', schedule(60_000), NOW));
+    state = recordAnswer(revealAnswer(state), 'unknown', schedule(60_000), NOW);
+    state = correctAnswer(state, 'known', schedule(DAY), NOW);
 
     expect(summarize(state)).toEqual({
       total: 2,
@@ -173,7 +181,7 @@ describe('summarize', () => {
 
 describe('endSession', () => {
   it('keeps what was answered before stopping early', () => {
-    let state = advance(recordAnswer(revealAnswer(startSession(cards)), 'known', NOW + DAY, NOW));
+    let state = advance(recordAnswer(revealAnswer(startSession(cards)), 'known', schedule(DAY), NOW));
     state = endSession(state);
     expect(state.stage).toBe('done');
     expect(summarize(state).total).toBe(1);
@@ -183,12 +191,13 @@ describe('endSession', () => {
 describe('attachSchedule', () => {
   it('fills in the delay without calling it a correction', () => {
     let state = recordAnswer(revealAnswer(startSession(cards)), 'known', null, NOW);
-    state = attachSchedule(state, 'a', NOW + DAY);
+    state = attachSchedule(state, 'a', schedule(DAY));
 
     expect(lastAnswer(state)).toEqual({
       cardId: 'a',
       status: 'known',
       nextReview: NOW + DAY,
+      intervalMs: DAY,
       answeredAt: NOW,
       corrected: false,
     });
@@ -198,13 +207,13 @@ describe('attachSchedule', () => {
 
   it('ignores a schedule that arrives for an earlier card', () => {
     const state = recordAnswer(revealAnswer(startSession(cards)), 'known', null, NOW);
-    expect(attachSchedule(state, 'b', NOW + DAY)).toBe(state);
+    expect(attachSchedule(state, 'b', schedule(DAY))).toBe(state);
   });
 
   it('keeps a correction marked as one', () => {
     let state = recordAnswer(revealAnswer(startSession(cards)), 'unknown', null, NOW);
     state = correctAnswer(state, 'known', null, NOW);
-    state = attachSchedule(state, 'a', NOW + DAY);
+    state = attachSchedule(state, 'a', schedule(DAY));
     expect(lastAnswer(state)?.corrected).toBe(true);
   });
 });
@@ -223,7 +232,7 @@ describe('spoken attempts', () => {
 
   it('attaches attempts to the card being asked', () => {
     let state = noteAttempt(startSession(cards), 'recall', 'כן', true, NOW);
-    state = advance(recordAnswer(state, 'known', NOW + DAY, NOW));
+    state = advance(recordAnswer(state, 'known', schedule(DAY), NOW));
     state = noteAttempt(state, 'recall', 'לא', true, NOW);
 
     expect(attemptsFor(state, 'a', 'recall')).toHaveLength(1);
@@ -240,9 +249,9 @@ describe('spoken attempts', () => {
     state = noteAttempt(state, 'recall', 'לא', false, NOW);
     state = noteAttempt(state, 'recall', 'כן', true, NOW);
     state = noteAttempt(state, 'pronunciation', 'igen', false, NOW);
-    state = advance(recordAnswer(state, 'known', NOW + DAY, NOW));
+    state = advance(recordAnswer(state, 'known', schedule(DAY), NOW));
     state = noteAttempt(state, 'recall', 'לא', false, NOW);
-    state = recordAnswer(state, 'unknown', NOW + 60_000, NOW);
+    state = recordAnswer(state, 'unknown', schedule(60_000), NOW);
 
     const summary = summarize(state);
     expect(summary.recalledAloud).toBe(1);
@@ -258,10 +267,10 @@ describe('taught words', () => {
       { id: 'b', prompt: 'nem', answer: 'לא', mode: 'review' },
     ];
     let state = startSession(mixed);
-    state = advance(recordAnswer(state, 'learning', NOW + 600_000, NOW));
+    state = advance(recordAnswer(state, 'learning', schedule(600_000), NOW));
     expect(summarize(state).taught).toBe(1);
 
-    state = recordAnswer(state, 'known', NOW + DAY, NOW);
+    state = recordAnswer(state, 'known', schedule(DAY), NOW);
     const summary = summarize(state);
     expect(summary.taught).toBe(1);
     expect(summary.total).toBe(2);
@@ -279,17 +288,17 @@ describe('a missed word comes back inside the sitting', () => {
   ];
 
   it('puts a missed word back a few cards later, not at the end', () => {
-    const state = recordAnswer(startSession(deck), 'unknown', NOW + 60_000, NOW);
+    const state = recordAnswer(startSession(deck), 'unknown', schedule(60_000), NOW);
     expect(state.cards.map((card) => card.id)).toEqual(['a', 'b', 'c', 'a', 'd', 'e']);
   });
 
   it('puts a half-known word back further away', () => {
-    const state = recordAnswer(startSession(deck), 'learning', NOW + 600_000, NOW);
+    const state = recordAnswer(startSession(deck), 'learning', schedule(600_000), NOW);
     expect(state.cards.map((card) => card.id)).toEqual(['a', 'b', 'c', 'd', 'e', 'a']);
   });
 
   it('lets a recalled word go, leaving the sitting to the schedule', () => {
-    const state = recordAnswer(startSession(deck), 'known', NOW + DAY, NOW);
+    const state = recordAnswer(startSession(deck), 'known', schedule(DAY), NOW);
     expect(state.cards.map((card) => card.id)).toEqual(['a', 'b', 'c', 'd', 'e']);
   });
 
@@ -298,7 +307,7 @@ describe('a missed word comes back inside the sitting', () => {
       { id: 'a', prompt: 'igen', answer: 'כן', mode: 'teach' },
       ...deck.slice(1),
     ];
-    const state = recordAnswer(startSession(teaching), 'learning', NOW + 600_000, NOW);
+    const state = recordAnswer(startSession(teaching), 'learning', schedule(600_000), NOW);
     expect(state.cards.at(-1)).toEqual({
       id: 'a',
       prompt: 'igen',
@@ -309,7 +318,7 @@ describe('a missed word comes back inside the sitting', () => {
 
   it('clamps the gap to the end of a short sitting', () => {
     const short = [deck[0], deck[1]];
-    const state = recordAnswer(startSession(short), 'learning', NOW + 600_000, NOW);
+    const state = recordAnswer(startSession(short), 'learning', schedule(600_000), NOW);
     expect(state.cards.map((card) => card.id)).toEqual(['a', 'b', 'a']);
   });
 
@@ -318,10 +327,10 @@ describe('a missed word comes back inside the sitting', () => {
     for (let round = 0; round < 5; round++) {
       // Answer the same word wrong every time it comes round again.
       while (currentCard(state)?.id !== 'a' && state.stage !== 'done') {
-        state = advance(recordAnswer(state, 'known', NOW + DAY, NOW));
+        state = advance(recordAnswer(state, 'known', schedule(DAY), NOW));
       }
       if (state.stage === 'done') break;
-      state = advance(recordAnswer(state, 'unknown', NOW + 60_000, NOW));
+      state = advance(recordAnswer(state, 'unknown', schedule(60_000), NOW));
     }
     expect(state.cards.filter((card) => card.id === 'a')).toHaveLength(MAX_APPEARANCES);
   });
@@ -335,17 +344,17 @@ describe('progress is counted in words, not cards', () => {
 
   it('does not grow when a missed word is put back', () => {
     const before = sessionProgress(startSession(deck)).total;
-    const state = recordAnswer(startSession(deck), 'unknown', NOW + 60_000, NOW);
+    const state = recordAnswer(startSession(deck), 'unknown', schedule(60_000), NOW);
     expect(sessionProgress(state).total).toBe(before);
   });
 
   it('counts a word as done only when nothing of it is left ahead', () => {
-    let state = recordAnswer(startSession(deck), 'unknown', NOW + 60_000, NOW);
+    let state = recordAnswer(startSession(deck), 'unknown', schedule(60_000), NOW);
     state = advance(state);
     // 'a' is still queued behind 'b', so one word is settled, not two.
     expect(sessionProgress(state)).toMatchObject({ total: 2, settled: 0, remaining: 2 });
 
-    state = advance(recordAnswer(state, 'known', NOW + DAY, NOW));
+    state = advance(recordAnswer(state, 'known', schedule(DAY), NOW));
     expect(sessionProgress(state)).toMatchObject({ settled: 1, remaining: 1 });
   });
 });
