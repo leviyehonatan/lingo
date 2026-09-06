@@ -211,9 +211,47 @@ on a card, and then records the failure and moves on. One mishearing is still
 not a failure; three in a row with nothing heard means the learner cannot be
 heard, and the session should carry on rather than sit there listening.
 
+## What the other apps do
+
+Researched 2026-09-06 against Speak, Pimsleur, Rosetta Stone, Duolingo and
+Babbel, so it does not need doing again. Only the parts that bear on decisions
+here are kept.
+
+- **Spacing starts inside the session.** Pimsleur's published ladder is 5s, 25s,
+  2min, 10min, 1hr, 5hr, 1 day, 5 days, 25 days, 4 months, 2 years, and its
+  first four rungs fire before the lesson ends. Duolingo re-queues missed items
+  so a lesson cannot finish until they are right. We reinsert a newly met word
+  once, at the end of the sitting, and our short rungs can never fire because
+  the deck is fixed when the sitting starts.
+- **A mistake resets the interval.** Babbel's review manager runs 1, 4, 7, 14,
+  60 days and six months, and a mistake sends an item back to the next day. That
+  is P1 and P2, arrived at independently by a shipping product rather than only
+  by the book.
+- **Scaffolding fades rather than switching off.** Speak shows the sentence,
+  then progressively covers words, then cues from the learner's own language
+  with nothing shown. We jump from a word shown with its meaning straight to
+  being asked for it cold.
+- **Speech feedback is per word, not per utterance.** Speak lights up the words
+  it matched and leaves the rest neutral.
+- **Speaking can be turned down or off, by the learner.** Rosetta Stone has a
+  precision slider from easy to difficult and a checkbox that disables the
+  speech requirement; Duolingo's skip pauses speaking for fifteen minutes.
+- **Repeated failures get diagnosed, not just recorded.** After three failed
+  attempts Rosetta Stone offers reasons, too noisy, cannot hear you, speak more
+  softly, and an option to continue without speech.
+- **The lenient-grader trap.** Reviewers report Speak passing mispronounced
+  words and even reordered sentences. That is the failure our matcher exists to
+  avoid, so a complaint about a rejection argues for the override, not a softer
+  grader.
+- **Rejected: streaks, experience points and leagues.** They measure attendance.
+  The share of answers recalled measures learning, and the app already shows it.
+
 ## Proposed, not yet decided
 
 ### P1 — Pass or fail with a reset, instead of a three-way status
+
+Now supported from outside the book as well: Babbel's scheduler resets a missed
+item to the next day.
 
 The method grades a review as pass or fail, and a fail returns the card to the
 shortest interval. We store `known`, `learning` and `unknown` and never reset.
