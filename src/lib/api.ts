@@ -29,14 +29,19 @@ export async function fetchProgress(): Promise<ProgressData> {
   return res.json();
 }
 
+/**
+ * Record one review. `correction` re-grades the review just recorded rather
+ * than adding another, so overturning a verdict does not advance the ladder.
+ */
 export async function updateProgress(
   wordId: string,
-  status: string
+  status: string,
+  correction = false
 ): Promise<UpdateProgressResponse> {
   const res = await fetch(`${BASE}/progress/${wordId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify(correction ? { status, correction: true } : { status }),
   });
   if (!res.ok) throw new Error('Failed to update progress');
   return res.json();

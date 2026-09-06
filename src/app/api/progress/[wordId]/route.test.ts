@@ -120,3 +120,35 @@ describe('PUT /api/progress/[wordId]', () => {
     });
   });
 });
+
+describe('PUT /api/progress/[wordId] corrections', () => {
+  it('re-grades the review just recorded instead of counting another', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1 });
+    const res = await put({ status: 'known', correction: true });
+    expect(res.status).toBe(200);
+
+    const write = prisma.wordProgress.upsert.mock.calls[0][0];
+    // Still one review, so the word stays on the first rung of the known ladder.
+    expect(write.update.reviewCount).toBe(1);
+    expect((await res.json()).nextReview).toBe(NOW + DAY);
+  });
+
+  it('counts a correction on an unreviewed word as its first review', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue(null);
+    const res = await put({ status: 'known', correction: true });
+    expect(res.status).toBe(200);
+    expect(prisma.wordProgress.upsert.mock.calls[0][0].create.reviewCount).toBe(1);
+  });
+
+  it('still advances the ladder for a review that is not a correction', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1 });
+    await put({ status: 'known' });
+    expect(prisma.wordProgress.upsert.mock.calls[0][0].update.reviewCount).toBe(2);
+  });
+
+  it('ignores a correction flag that is not exactly true', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1 });
+    await put({ status: 'known', correction: 'yes' });
+    expect(prisma.wordProgress.upsert.mock.calls[0][0].update.reviewCount).toBe(2);
+  });
+});

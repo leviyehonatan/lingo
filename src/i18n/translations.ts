@@ -89,6 +89,51 @@ const heRaw = {
   importCancel: 'ביטול',
   importErrorNoName: 'נא להזין שם לרשימה',
   importErrorNoWords: 'לא נמצאו מילים. נסה פורמט: הונגרית,עברית (או מופרד בטאב)',
+  // --- guided session ---
+  sessionSetupTitle: 'מוכנים ללמוד?',
+  sessionDirection: 'כיוון הלימוד',
+  directionForward: 'רואים הונגרית · נזכרים בעברית',
+  directionReverse: 'רואים עברית · נזכרים בהונגרית',
+  sessionDeck: 'מה לתרגל',
+  sessionActivity: 'איך לתרגל',
+  activityCards: 'כרטיסים',
+  activityCardsHint: 'נזכרים לבד, ואז מדרגים את עצמכם',
+  activityQuiz: 'בוחן',
+  activityQuizHint: 'בוחרים מתוך ארבע אפשרויות',
+  activityWriting: 'כתיבה',
+  activityWritingHint: 'מקלידים את התשובה',
+  deckCount: (n: number) => `${n} מילים`,
+  sessionStart: (n: number) => `מתחילים · ${n} כרטיסים`,
+  sessionEmpty: 'אין מילים בבחירה הזו. בחרו קבוצה אחרת.',
+  sessionToday: (done: number, goal: number) => `היום תרגלתם ${done} מתוך ${goal}`,
+  sessionCardPosition: (position: number, total: number) => `כרטיס ${position} מתוך ${total}`,
+  taskRecall: 'נזכרים בתשובה ואומרים אותה בקול',
+  taskGrade: 'ידעתם? דרגו את עצמכם בכנות',
+  taskVerdict: 'זה מה שנרשם',
+  revealAnswer: 'גילוי התשובה',
+  sessionEnd: 'סיום',
+  sessionNext: 'הכרטיס הבא',
+  verdictKnown: 'ידעתם',
+  verdictLearning: 'כמעט',
+  verdictUnknown: 'לא ידעתם',
+  verdictReturn: (delay: string) => `חוזרת בעוד ${delay}`,
+  verdictUnsaved: 'לא הצלחנו לשמור — נסו שוב מאוחר יותר',
+  overrideAsk: 'דירגתם לא נכון?',
+  overrideDone: 'עודכן',
+  summaryTitle: 'סיימתם את הסבב',
+  summaryNothing: 'לא דירגתם אף מילה בסבב הזה',
+  summaryLine: (n: number) => `${n} מילים`,
+  summaryNext: (delay: string) => `המילה הקרובה חוזרת בעוד ${delay}`,
+  summaryAgain: 'סבב נוסף',
+  summaryTopics: 'חזרה לנושאים',
+  resetConfirm: 'לאפס את כל ההתקדמות בכל המילים? אי אפשר לבטל.',
+  resetCancel: 'ביטול',
+  resetDo: 'איפוס',
+  delayMinute: (n: number) => (n === 1 ? 'דקה' : n === 2 ? 'שתי דקות' : `${n} דקות`),
+  delayHour: (n: number) => (n === 1 ? 'שעה' : n === 2 ? 'שעתיים' : `${n} שעות`),
+  delayDay: (n: number) => (n === 1 ? 'יום' : n === 2 ? 'יומיים' : `${n} ימים`),
+  delayWeek: (n: number) => (n === 1 ? 'שבוע' : n === 2 ? 'שבועיים' : `${n} שבועות`),
+  delayMonth: (n: number) => (n === 1 ? 'חודש' : n === 2 ? 'חודשיים' : `${n} חודשים`),
   language: 'עברית',
   pairArrow: '←',
   prevArrow: '▶',
@@ -184,6 +229,51 @@ const enRaw: typeof heRaw = {
   importCancel: 'Cancel',
   importErrorNoName: 'Please enter a list name',
   importErrorNoWords: 'No words found. Try format: Hungarian,Hebrew (or tab-separated)',
+  // --- guided session ---
+  sessionSetupTitle: 'Ready to study?',
+  sessionDirection: 'Direction',
+  directionForward: 'See Hungarian, recall Hebrew',
+  directionReverse: 'See Hebrew, recall Hungarian',
+  sessionDeck: 'What to practise',
+  sessionActivity: 'How to practise',
+  activityCards: 'Cards',
+  activityCardsHint: 'Recall on your own, then grade yourself',
+  activityQuiz: 'Quiz',
+  activityQuizHint: 'Pick one of four',
+  activityWriting: 'Writing',
+  activityWritingHint: 'Type the answer',
+  deckCount: (n: number) => `${n} words`,
+  sessionStart: (n: number) => `Start · ${n} cards`,
+  sessionEmpty: 'Nothing in this selection. Pick another group.',
+  sessionToday: (done: number, goal: number) => `Today you practised ${done} of ${goal}`,
+  sessionCardPosition: (position: number, total: number) => `Card ${position} of ${total}`,
+  taskRecall: 'Recall the answer and say it aloud',
+  taskGrade: 'Did you know it? Grade yourself honestly',
+  taskVerdict: 'This is what was recorded',
+  revealAnswer: 'Show the answer',
+  sessionEnd: 'End session',
+  sessionNext: 'Next card',
+  verdictKnown: 'You knew it',
+  verdictLearning: 'Almost',
+  verdictUnknown: 'You did not know it',
+  verdictReturn: (delay: string) => `Back in ${delay}`,
+  verdictUnsaved: 'Could not save — try again later',
+  overrideAsk: 'Graded it wrong?',
+  overrideDone: 'Updated',
+  summaryTitle: 'Session finished',
+  summaryNothing: 'You graded nothing this session',
+  summaryLine: (n: number) => `${n} words`,
+  summaryNext: (delay: string) => `The soonest one comes back in ${delay}`,
+  summaryAgain: 'Another round',
+  summaryTopics: 'Back to topics',
+  resetConfirm: 'Reset progress on every word? This cannot be undone.',
+  resetCancel: 'Cancel',
+  resetDo: 'Reset',
+  delayMinute: (n: number) => (n === 1 ? 'a minute' : `${n} minutes`),
+  delayHour: (n: number) => (n === 1 ? 'an hour' : `${n} hours`),
+  delayDay: (n: number) => (n === 1 ? 'a day' : `${n} days`),
+  delayWeek: (n: number) => (n === 1 ? 'a week' : `${n} weeks`),
+  delayMonth: (n: number) => (n === 1 ? 'a month' : `${n} months`),
   language: 'English',
   pairArrow: '→',
   prevArrow: '◀',
@@ -193,3 +283,25 @@ const enRaw: typeof heRaw = {
 export const he = heRaw;
 export const en = enRaw;
 export type Translations = typeof heRaw;
+
+/**
+ * "in three days" and friends, in the current language. Hebrew has a dual form
+ * for two of anything, so the wording lives here rather than in the component.
+ */
+export function formatDelay(
+  t: Translations,
+  delay: { value: number; unit: 'minute' | 'hour' | 'day' | 'week' | 'month' }
+): string {
+  switch (delay.unit) {
+    case 'minute':
+      return t.delayMinute(delay.value);
+    case 'hour':
+      return t.delayHour(delay.value);
+    case 'day':
+      return t.delayDay(delay.value);
+    case 'week':
+      return t.delayWeek(delay.value);
+    case 'month':
+      return t.delayMonth(delay.value);
+  }
+}

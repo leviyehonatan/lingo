@@ -48,6 +48,35 @@ remote image has to load.
 Answer grading moved into `src/lib/answer-match.ts`. See the matching section of
 [`voice-mode.md`](voice-mode.md) for what it accepts and what is still missing.
 
+### D3 — The study screen is a guided session (2026-09-06)
+
+The old screen showed fifteen controls at once and never said which of them the
+moment called for. It is now three screens with one job each, driven by a pure
+machine in `src/lib/session.ts`.
+
+- **Setup** states the direction in words rather than arrows, how many words sit
+  in each group, and which activity is about to run. A session is a fixed number
+  of cards, so it ends.
+- **Asking** shows one task line, the card, and only the controls that stage
+  needs. Grading appears after the answer does.
+- **The verdict** names what was recorded and when the word comes back, so the
+  schedule stops being invisible.
+- **The summary** counts what was answered and when the soonest word returns.
+
+Two things came out of building it. Grading in quiz and writing was attributed
+to whatever card the outer deck was on rather than the word being answered; all
+three activities now share one machine, so an answer can only land on the word
+that was asked. And overturning a verdict used to write a second review, which
+marched the word up its interval ladder for one answer, so `PUT
+/api/progress/:wordId` gained a `correction` flag that re-grades the review
+already counted.
+
+Reset moved off the filter row, where it sat one unconfirmed click from wiping
+every word, and now asks first.
+
+The Hebrew translation table in `src/i18n/` was already written and unused. The
+session screens use it, so the interface is one language again.
+
 ## Proposed, not yet decided
 
 ### P1 — Pass or fail with a reset, instead of a three-way status
@@ -90,8 +119,8 @@ We cannot currently tell whether reviews are landing in the 90 to 95 percent
 band the schedule assumes. Without it, every interval-tuning discussion is
 guesswork.
 
-### P7 — A manual override for a wrong spoken verdict
+### P7 — Enforce the recall window
 
-The matcher is hardened but still has the last word. Hebrew recognition is weak
-enough that a learner needs to be able to say the grader got it wrong, which is
-also what keeps a failed recognition from poisoning the schedule.
+The method gives a review five to ten seconds. Nothing counts that down yet, and
+nothing ends a card the learner is staring at. This is the next piece of the
+guided session, and the natural place for the voice loop to attach.

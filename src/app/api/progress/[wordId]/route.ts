@@ -12,6 +12,11 @@ export const runtime = 'nodejs';
  * The client sends only the status it just gave the word. The review count,
  * the review time and the next due date are all decided here, so the schedule
  * cannot be forged or skewed by a stale client clock.
+ *
+ * With `correction: true` the body replaces the review that was just recorded
+ * instead of adding another one. The learner overturning a verdict changed
+ * their mind about one review; counting it twice would march the word up its
+ * interval ladder for an answer they only gave once.
  */
 export async function PUT(
   request: NextRequest,
@@ -42,6 +47,8 @@ export async function PUT(
     );
   }
 
+  const correction = (body as { correction?: unknown } | null)?.correction === true;
+
   const userId = session.user.id;
   const existing = await prisma.wordProgress.findUnique({
     where: { wordId_userId: { wordId, userId } },
@@ -49,7 +56,12 @@ export async function PUT(
   });
 
   const now = Date.now();
-  const reviewCount = (existing?.reviewCount ?? 0) + 1;
+  // A correction re-grades the review already counted, so the count only moves
+  // for a genuinely new one. Correcting a word with no reviews yet still counts
+  // as its first.
+  const reviewCount = correction
+    ? Math.max(existing?.reviewCount ?? 0, 1)
+    : (existing?.reviewCount ?? 0) + 1;
   const nextReview = computeNextReview(status, reviewCount, now);
 
   await prisma.wordProgress.upsert({

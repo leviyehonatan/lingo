@@ -80,9 +80,15 @@ It replaced a check that accepted a match when either string contained the
 other, which let a single spoken syllable score a word correct, and which ran on
 interim results so it could fire before the learner finished speaking.
 
-Still missing, and needed before voice grading can be trusted hands-free: a
-manual override, so the learner can overturn a wrong verdict. The recognizer
-must never be the last word on a failure, especially in Hebrew.
+The override that this needed now exists: the verdict panel offers the other two
+grades, and taking one rewrites the review rather than adding a second, so a
+correction never advances the interval ladder. The recognizer is not the last
+word on a failure.
+
+What voice mode still needs is to drive the session rather than sit beside it.
+The stages are in place and the machine is pure, so listening becomes a matter of
+starting the recognizer when a stage begins and feeding its verdict in as an
+event.
 
 ## Platform reality
 

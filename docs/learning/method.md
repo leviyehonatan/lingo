@@ -135,12 +135,15 @@ Honest gap list, so nobody assumes the app already implements the above.
   the book warns about, and there is no frequency ordering anywhere.
 - **We do not measure accuracy**, so we cannot tell whether we are near the 90 to
   95 percent band the schedule is supposed to hold.
-- **Nothing enforces the short recall window**, and nothing asks the learner to
-  answer aloud outside the optional voice buttons.
+- **Nothing enforces the short recall window.** The session asks for an answer
+  but does not time it.
 
-Closed since this was written: spoken answers are now graded by
+Closed since this was written. Spoken and typed answers are graded by
 `src/lib/answer-match.ts`, which accepts any valid alternative and no longer
-accepts a fragment of the answer.
+accepts a fragment. The study screen is a guided session that states its task at
+every step, asks the learner to answer aloud, shows what each answer cost and
+when the word returns, and lets a wrong verdict be overturned without charging
+the word a second review.
 
 None of these are bugs against the current spec. They are the distance between
 what lingo is and what the method asks for, and they are the menu that
