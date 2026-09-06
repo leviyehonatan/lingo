@@ -1,5 +1,15 @@
 @AGENTS.md
 
+# How this app is supposed to teach
+
+**Before changing scheduling, grading, card content, word ordering, or the voice
+study loop — read `docs/learning/`.** Those capsules hold the method the app is
+being built around, distilled from *Fluent Forever*, plus a log of which study-model
+decisions are settled and which are still open. `docs/learning/method.md` also lists,
+honestly, where the current implementation does not yet follow the method, so do not
+assume a gap there is a bug to fix on sight.
+
+
 # Project & infrastructure context
 
 **Before touching deployment, infra, secrets, or the server — read `~/dev/infra/docs/HANDOFF.md`.** It is the master session-state handoff (server, services, domains, secrets map, deploy workflow, TODOs).

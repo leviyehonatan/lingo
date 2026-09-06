@@ -43,8 +43,10 @@ next-env.d.ts
 /src/generated/prisma
 .ship-data/
 
-# internal deployment notes (never push)
-/docs/
+# internal deployment notes (never push), except the learning capsules,
+# which are our own design notes and are meant to be shared
+/docs/*
+!/docs/learning/
 
 # tooling / local junk (never push)
 /.agents/
