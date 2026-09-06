@@ -246,6 +246,26 @@ here are kept.
 - **Rejected: streaks, experience points and leagues.** They measure attendance.
   The share of answers recalled measures learning, and the app already shows it.
 
+### D11 — The sitting is a queue words come back into (2026-09-06)
+
+The sitting was a list built when it started, so the short rungs of the interval
+ladder could never fire: a word missed at the beginning could not return until
+the next day, whatever the schedule said. Pimsleur fires four of its rungs
+before a lesson ends, and Duolingo will not finish a lesson while an item is
+still wrong.
+
+Answering a card now puts it back into the queue, at a distance the grade
+chooses: three cards for a word missed, six for one half known or just met, and
+not at all for one recalled. A word appears at most three times in a sitting, so
+one stubborn word cannot eat the session. Teaching uses the same mechanism, so a
+word met is asked for a few cards later rather than after every other
+introduction.
+
+Progress is counted in words rather than cards, because the queue grows as words
+are put back and a card count would climb under the learner. A word is finished
+when it has no appearance left ahead of it. The verdict says when a word is
+coming back, so its return is expected.
+
 ## Proposed, not yet decided
 
 ### P1 — Pass or fail with a reset, instead of a three-way status
@@ -259,6 +279,9 @@ Adopting this touches `src/lib/progress.ts`, the API contract and the filter UI,
 so it is a real change rather than a rename.
 
 ### P2 — Ladder position from a streak, not from total review count
+
+Now the natural next step: words come back inside a sitting, so a failure that
+resets the ladder has somewhere to send them.
 
 `reviewInterval` indexes the ladder by how many times a word has ever been
 reviewed. A word answered correctly many times, then failed, jumps straight back

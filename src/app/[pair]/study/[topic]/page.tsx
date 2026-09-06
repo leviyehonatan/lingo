@@ -286,18 +286,12 @@ function StudyPageInner() {
             .slice(0, SESSION_SIZE)
             .map((w) => ({ id: w.id, mode: modeFor(progress.byWord, w.id) }));
 
-    const cards = chosen
+    // Words come back by being put back into the queue as the sitting runs,
+    // which is what lets a missed word return a few cards later rather than
+    // tomorrow. See `REINSERT_GAP` in `src/lib/session.ts`.
+    return chosen
       .map((planned) => toCard(planned.id, planned.mode))
       .filter((card): card is SessionCard => card !== null);
-
-    // Meeting a word is not learning it, so every word introduced today is
-    // asked for later in the same sitting. Queued up front rather than as the
-    // learner goes, so the sitting's length is known before it starts.
-    const introduced = cards
-      .filter((card) => card.mode === 'teach')
-      .map((card) => ({ ...card, mode: 'review' as const }));
-
-    return [...cards, ...introduced];
   }, [words, wordIds, progress.byWord, deck, direction, plan]);
 
   const beginSession = useCallback(() => {
@@ -559,7 +553,7 @@ function StudyPageInner() {
     );
   }
 
-  const { position, total } = sessionProgress(session);
+  const { settled, total } = sessionProgress(session);
   // Quiz and writing ask the question themselves; every activity shares the
   // reveal and the verdict that follow. A word being met for the first time is
   // never asked, whatever the activity: there is nothing to answer with yet.
@@ -569,7 +563,7 @@ function StudyPageInner() {
     <div className="min-h-screen bg-slate-900 text-slate-100">
       <SessionHeader
         topicName={topic.nameHe}
-        position={position}
+        settled={settled}
         total={total}
         onEnd={() => setSession((prev) => (prev ? endSession(prev) : prev))}
       />
@@ -596,6 +590,9 @@ function StudyPageInner() {
           stage={session.stage}
           answer={verdict}
           heard={attemptsFor(session, card.id, 'recall').at(-1)}
+          comesBack={session.cards
+            .slice(session.index + 1)
+            .some((queued) => queued.id === card.id)}
           direction={direction}
           canListen={canListen}
           handsFree={handsFree && canListen}

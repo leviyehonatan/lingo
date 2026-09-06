@@ -104,7 +104,7 @@ test.describe('study session', () => {
 
     await endSession(page);
     await startDeck(page, 'known');
-    await expect(page.locator('[data-session-position]')).toHaveText('כרטיס 1 מתוך 1');
+    await expect(page.locator('[data-session-position]')).toHaveText('0 מתוך 1 מילים');
 
     await page.locator('[data-session-reveal]').click();
     await page.locator('[data-grade="known"]').click();

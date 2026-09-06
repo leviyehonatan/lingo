@@ -77,7 +77,6 @@ test.describe('deck stability', () => {
     expect(await promptWord(page)).toBe(shown);
 
     await page.locator('[data-session-next]').click();
-    await expect(page.locator('[data-session-position]')).toContainText('כרטיס 2');
     expect(await promptWord(page)).not.toBe(shown);
   });
 });
