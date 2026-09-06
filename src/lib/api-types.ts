@@ -36,6 +36,10 @@ export interface ProgressEntry {
   last_reviewed: number;
   review_count: number;
   next_review: number;
+  /** Times the word has been put in front of the learner, teaching included. */
+  seen_count: number;
+  /** Times a word the learner had known came back unknown. */
+  lapses: number;
 }
 
 export interface DailyEntry {

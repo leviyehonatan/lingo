@@ -1,3 +1,5 @@
+import type { ReviewTelemetry } from './telemetry';
+import type { LearnerStats } from './stats';
 import type {
   LangPair,
   LevelData,
@@ -29,14 +31,27 @@ export async function fetchProgress(): Promise<ProgressData> {
   return res.json();
 }
 
+/**
+ * Record one review. `correction` re-grades the review just recorded rather
+ * than adding another, so overturning a verdict does not advance the ladder.
+ *
+ * `telemetry` says how the answer arrived and how long it took. It is optional
+ * and never load-bearing: a review is recorded either way.
+ */
 export async function updateProgress(
   wordId: string,
-  status: string
+  status: string,
+  correction = false,
+  telemetry?: ReviewTelemetry
 ): Promise<UpdateProgressResponse> {
   const res = await fetch(`${BASE}/progress/${wordId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({
+      status,
+      ...(correction ? { correction: true } : {}),
+      ...(telemetry ?? {}),
+    }),
   });
   if (!res.ok) throw new Error('Failed to update progress');
   return res.json();
@@ -54,5 +69,12 @@ export async function recordDaily(count: number): Promise<RecordDailyResponse> {
     body: JSON.stringify({ count }),
   });
   if (!res.ok) throw new Error('Failed to record daily');
+  return res.json();
+}
+
+/** How the learner is doing overall, for the setup screen. */
+export async function fetchStats(): Promise<LearnerStats> {
+  const res = await fetch(`${BASE}/stats`);
+  if (!res.ok) throw new Error('Failed to fetch stats');
   return res.json();
 }

@@ -132,15 +132,23 @@ Honest gap list, so nobody assumes the app already implements the above.
   reviewed many times, then failed, jumps straight back to a long interval when
   it next passes. See `src/lib/progress.ts`.
 - **Words are ordered thematically by topic**, which is the interference pattern
-  the book warns about, and there is no frequency ordering anywhere.
-- **We do not measure accuracy**, so we cannot tell whether we are near the 90 to
-  95 percent band the schedule is supposed to hold.
-- **Nothing enforces the short recall window**, and nothing asks the learner to
-  answer aloud outside the optional voice buttons.
+  the book warns about, and there is no frequency ordering anywhere. Within a
+  sitting the order is now due-first rather than arbitrary, but the pool a topic
+  draws from is still a themed list.
+- **What is measured is not yet used.** Accuracy, answer times and lapses are
+  recorded and shown, but nothing feeds them back into the intervals, so the
+  schedule still cannot correct itself.
+- **Nothing enforces the short recall window.** The session times the answer now,
+  but does not hold the learner to five or ten seconds.
 
-Closed since this was written: spoken answers are now graded by
+Closed since this was written. A word the learner has never met is taught
+rather than tested, and the session decides its own contents instead of asking
+the learner to assemble one. Spoken and typed answers are graded by
 `src/lib/answer-match.ts`, which accepts any valid alternative and no longer
-accepts a fragment of the answer.
+accepts a fragment. The study screen is a guided session that states its task at
+every step, asks the learner to answer aloud, shows what each answer cost and
+when the word returns, and lets a wrong verdict be overturned without charging
+the word a second review.
 
 None of these are bugs against the current spec. They are the distance between
 what lingo is and what the method asks for, and they are the menu that

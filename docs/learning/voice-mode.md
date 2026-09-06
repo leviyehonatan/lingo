@@ -1,8 +1,8 @@
 # Voice mode
 
-The hands-free study loop: the app shows a card, listens while the learner says
-the prompt aloud, reveals the meaning, then listens for the learner to say it.
-This capsule is the design, the constraints, and the parts the method in
+The spoken study loop: a new word is read aloud and repeated back, a known word
+is asked for and answered aloud, and the verdict says what was recorded. This
+capsule is the design, the constraints, and the parts the method in
 [`method.md`](method.md) settles for us.
 
 ## The language problem solves itself
@@ -17,21 +17,19 @@ Per card, in order:
 
 | Stage | Shown | Listening for | Recognition language |
 | --- | --- | --- | --- |
-| Prompt | prompt side | the learner reading it aloud | prompt side |
-| Reveal | both sides | nothing | none |
-| Recall | prompt side, answer hidden again | the answer | answer side |
-| Grade | verdict | nothing | none |
+| Meeting a word | both sides | the learner repeating it | Hungarian |
+| Being asked | the prompt side | the answer | the answer's language |
+| Verdict | both sides, with what was recorded | nothing | none |
 
-The existing reverse toggle swaps which language sits on which side. It is one
-machine with the languages parameterized, never two machines.
+The direction toggle swaps which language sits on which side. It is one machine
+with the languages parameterized, never two machines.
 
 ## What the method fixes for us
 
 - **Saying it aloud is part of every answer**, not a separate mode. Voice is the
   default way to review, not a feature bolted onto flashcards.
-- **The recall window is five to ten seconds.** That is the silence timeout, and
-  it is a deliberate ceiling, not a convenience. Silence past the window is a
-  miss, and a miss must immediately reveal the answer.
+- **The recall window is five to ten seconds.** Not yet enforced: the answer is
+  timed, but nothing holds the learner to the window.
 - **Grade pass or fail, and reset the interval on a fail.** No partial credit. A
   hesitant answer that lands is a pass.
 - **An instant, effortless answer is a signal the interval was too short**, which
@@ -43,6 +41,50 @@ machine with the languages parameterized, never two machines.
   does not use contrastively does not.
 - **Feedback is immediate and binary.** That per-trial verdict is the mechanism
   the whole approach rests on.
+
+## What the learner can do, and what it costs
+
+One card asks for one thing. Offering a choice between saying the word and
+saying its meaning made the learner decide what they were practising before they
+could answer, which is a decision they are not in a position to make.
+
+| Card | The one spoken action | Effect |
+| --- | --- | --- |
+| A word being met | Repeat it in Hungarian, after the app says it | Records an attempt. A good repetition moves the card on. |
+| A word being reviewed | Say the answer, in the answer's language | The graded recall. A match grades it known; a miss grades nothing and waits. |
+
+Alongside it a card offers only escapes, never alternatives: show the answer,
+which is an admission and records the word as not known, and after a miss the
+choice between having known it and not. Next exists only once a verdict does.
+
+That admission is what makes the demonstration active. While revealing was free
+and ungraded, nothing obliged the learner to try.
+
+The three grade buttons did not disappear. They are the manual path for a
+browser that cannot hear, and the correction row on every verdict.
+
+## Saying which language
+
+Nothing on a card should leave the learner guessing which language is wanted.
+Both sides carry their language, the hidden side says whether it holds the word
+or the meaning, and the task line names the language it is asking for: say the
+meaning in Hebrew, or say the word in Hungarian, swapping with the direction.
+
+The microphone says it too, and says it while it matters. An open microphone
+does not show a generic recording state; it shows what to say, in which
+language, for the whole time it is listening.
+
+## Hands-free
+
+Turned on from the setup screen and remembered per browser. The app reads the
+word, waits a beat so it is not talking over the learner, opens the microphone
+itself, and moves on once it has heard them. Nothing is clicked.
+
+It stops on its own where stopping is the point: after a mishearing it stays on
+the card, because racing past a miss is exactly the behaviour that made a wrong
+transcript cost a word its schedule.
+
+Without a microphone the toggle is not offered, and the session runs on buttons.
 
 ## Two skills, graded differently
 
@@ -80,9 +122,9 @@ It replaced a check that accepted a match when either string contained the
 other, which let a single spoken syllable score a word correct, and which ran on
 interim results so it could fire before the learner finished speaking.
 
-Still missing, and needed before voice grading can be trusted hands-free: a
-manual override, so the learner can overturn a wrong verdict. The recognizer
-must never be the last word on a failure, especially in Hebrew.
+The override exists: the verdict panel offers the other two grades, and taking
+one rewrites the review rather than adding a second, so a correction never
+advances the interval ladder. The recognizer is not the last word on a failure.
 
 ## Platform reality
 

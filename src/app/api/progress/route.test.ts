@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const auth = vi.fn();
 const prisma = {
   wordProgress: { findMany: vi.fn(), deleteMany: vi.fn() },
+  reviewEvent: { deleteMany: vi.fn() },
   dailyRecord: { findMany: vi.fn(), deleteMany: vi.fn() },
   $transaction: vi.fn(),
 };
@@ -100,5 +101,19 @@ describe('DELETE /api/progress', () => {
       where: { userId: 'user-1' },
     });
     expect(prisma.$transaction).toHaveBeenCalledOnce();
+  });
+});
+
+describe('DELETE /api/progress clears the history too', () => {
+  it('drops the review log alongside the schedule', async () => {
+    auth.mockResolvedValue(USER);
+    await DELETE();
+
+    // Resetting progress must not leave a learner's old answers behind to
+    // keep showing up in their statistics.
+    expect(prisma.reviewEvent.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1' },
+    });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
 });

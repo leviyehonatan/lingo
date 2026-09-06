@@ -91,6 +91,40 @@ the same-origin `callbackUrl` guard in `src/lib/safe-callback-url.ts`, and the
 progress and vocabulary API routes with `@/lib/prisma` and `@/lib/auth` mocked.
 No database is needed and the whole run finishes in well under a second.
 
+### Seeing it locally, signed in
+
+Sign-in is Google-only and a local checkout has no Google credentials, so there
+is no way to reach a signed-in page by hand. Two scripts stand in for it, using
+the same trick as the e2e setup: mint the session cookie the app would have
+issued.
+
+Once per database:
+
+```bash
+createdb lingo_dev
+DATABASE_URL=postgresql://$USER@localhost:5432/lingo_dev npx prisma db push
+DATABASE_URL=postgresql://$USER@localhost:5432/lingo_dev npm run seed
+DATABASE_URL=postgresql://$USER@localhost:5432/lingo_dev npm run dev:user
+```
+
+Then, in one terminal, the server:
+
+```bash
+DATABASE_URL=postgresql://$USER@localhost:5432/lingo_dev \
+  AUTH_SECRET=local-dev-secret-not-for-production \
+  GOOGLE_CLIENT_ID=local GOOGLE_CLIENT_SECRET=local npm run dev
+```
+
+and in another, a browser window that is already signed in:
+
+```bash
+npm run dev:session
+```
+
+`npm run dev:session -- --path /hu-he` opens somewhere else, `--headless` just
+prints the cookie, and `--port`, `--secret` and `--user` override the rest. The
+secret only has to match between the two commands.
+
 ### End-to-end
 
 The Playwright suite in `e2e/` drives a real dev server against a real Postgres.

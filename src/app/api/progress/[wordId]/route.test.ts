@@ -3,6 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const auth = vi.fn();
 const prisma = {
   wordProgress: { findUnique: vi.fn(), upsert: vi.fn() },
+  reviewEvent: { create: vi.fn() },
+  // The route writes the state and the log together; the mock just collects
+  // whatever operations it was handed.
+  $transaction: vi.fn(async (ops: unknown[]) => ops),
 };
 
 vi.mock('@/lib/auth', () => ({ auth: () => auth() }));
@@ -29,6 +33,7 @@ const put = (body: unknown, wordId?: string) => PUT(request(body), ctx(wordId) a
 
 beforeEach(() => {
   vi.clearAllMocks();
+  prisma.$transaction.mockImplementation(async (ops: unknown[]) => ops);
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
   auth.mockResolvedValue(USER);
@@ -80,6 +85,8 @@ describe('PUT /api/progress/[wordId]', () => {
       update: {
         status: 'known',
         reviewCount: 1,
+        seenCount: 1,
+        lapses: 0,
         lastReviewed: BigInt(NOW),
         nextReview: BigInt(NOW + DAY),
       },
@@ -88,6 +95,8 @@ describe('PUT /api/progress/[wordId]', () => {
         userId: 'user-1',
         status: 'known',
         reviewCount: 1,
+        seenCount: 1,
+        lapses: 0,
         lastReviewed: BigInt(NOW),
         nextReview: BigInt(NOW + DAY),
       },
@@ -116,7 +125,132 @@ describe('PUT /api/progress/[wordId]', () => {
     await put({ status: 'learning' }, 'a1-colors-3');
     expect(prisma.wordProgress.findUnique).toHaveBeenCalledWith({
       where: { wordId_userId: { wordId: 'a1-colors-3', userId: 'user-1' } },
-      select: { reviewCount: true },
+      select: { reviewCount: true, seenCount: true, lapses: true, status: true },
     });
+  });
+});
+
+describe('PUT /api/progress/[wordId] corrections', () => {
+  it('re-grades the review just recorded instead of counting another', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1 });
+    const res = await put({ status: 'known', correction: true });
+    expect(res.status).toBe(200);
+
+    const write = prisma.wordProgress.upsert.mock.calls[0][0];
+    // Still one review, so the word stays on the first rung of the known ladder.
+    expect(write.update.reviewCount).toBe(1);
+    expect((await res.json()).nextReview).toBe(NOW + DAY);
+  });
+
+  it('counts a correction on an unreviewed word as its first review', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue(null);
+    const res = await put({ status: 'known', correction: true });
+    expect(res.status).toBe(200);
+    expect(prisma.wordProgress.upsert.mock.calls[0][0].create.reviewCount).toBe(1);
+  });
+
+  it('still advances the ladder for a review that is not a correction', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1 });
+    await put({ status: 'known' });
+    expect(prisma.wordProgress.upsert.mock.calls[0][0].update.reviewCount).toBe(2);
+  });
+
+  it('ignores a correction flag that is not exactly true', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({ reviewCount: 1 });
+    await put({ status: 'known', correction: 'yes' });
+    expect(prisma.wordProgress.upsert.mock.calls[0][0].update.reviewCount).toBe(2);
+  });
+});
+
+describe('PUT /api/progress/[wordId] telemetry', () => {
+  const telemetry = {
+    direction: 'forward',
+    mode: 'review',
+    source: 'speech',
+    latencyMs: 4200,
+    spokenAttempts: 2,
+  };
+
+  it('logs how the answer arrived alongside the state it produced', async () => {
+    await put({ status: 'known', ...telemetry });
+
+    expect(prisma.reviewEvent.create).toHaveBeenCalledWith({
+      data: {
+        userId: 'user-1',
+        wordId: 'w1',
+        direction: 'forward',
+        mode: 'review',
+        source: 'speech',
+        status: 'known',
+        corrected: false,
+        latencyMs: 4200,
+        spokenAttempts: 2,
+        reviewedAt: BigInt(NOW),
+      },
+    });
+    // Written together, so the log and the state cannot disagree.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('records a review with no telemetry rather than refusing it', async () => {
+    const res = await put({ status: 'known' });
+    expect(res.status).toBe(200);
+    expect(prisma.reviewEvent.create).not.toHaveBeenCalled();
+    expect(prisma.wordProgress.upsert).toHaveBeenCalled();
+  });
+
+  it('drops telemetry it does not recognise, and still records the review', async () => {
+    const res = await put({ status: 'known', ...telemetry, direction: 'sideways' });
+    expect(res.status).toBe(200);
+    expect(prisma.reviewEvent.create).not.toHaveBeenCalled();
+    expect(prisma.wordProgress.upsert).toHaveBeenCalled();
+  });
+
+  it('counts a sighting for every showing, and none for a correction', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({
+      reviewCount: 2,
+      seenCount: 3,
+      lapses: 0,
+      status: 'known',
+    });
+
+    await put({ status: 'known', ...telemetry });
+    expect(prisma.wordProgress.upsert.mock.calls[0][0].update.seenCount).toBe(4);
+
+    vi.clearAllMocks();
+    prisma.$transaction.mockImplementation(async (ops: unknown[]) => ops);
+    prisma.wordProgress.findUnique.mockResolvedValue({
+      reviewCount: 2,
+      seenCount: 3,
+      lapses: 0,
+      status: 'known',
+    });
+    await put({ status: 'unknown', correction: true, ...telemetry });
+    expect(prisma.wordProgress.upsert.mock.calls[0][0].update.seenCount).toBe(3);
+    expect(prisma.reviewEvent.create.mock.calls[0][0].data.corrected).toBe(true);
+  });
+
+  it('counts a lapse when a known word comes back unknown', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({
+      reviewCount: 4,
+      seenCount: 4,
+      lapses: 1,
+      status: 'known',
+    });
+
+    await put({ status: 'unknown', ...telemetry });
+    expect(prisma.wordProgress.upsert.mock.calls[0][0].update.lapses).toBe(2);
+  });
+
+  it('does not count a lapse for a word that was never known', async () => {
+    prisma.wordProgress.findUnique.mockResolvedValue({
+      reviewCount: 1,
+      seenCount: 1,
+      lapses: 0,
+      status: 'learning',
+    });
+
+    await put({ status: 'unknown', ...telemetry });
+    expect(prisma.wordProgress.upsert.mock.calls[0][0].update.lapses).toBe(0);
   });
 });

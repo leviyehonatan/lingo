@@ -48,9 +48,210 @@ remote image has to load.
 Answer grading moved into `src/lib/answer-match.ts`. See the matching section of
 [`voice-mode.md`](voice-mode.md) for what it accepts and what is still missing.
 
+### D3 — The study screen is a guided session (2026-09-06)
+
+The old screen showed fifteen controls at once and never said which of them the
+moment called for. It is now three screens with one job each, driven by a pure
+machine in `src/lib/session.ts`.
+
+- **Setup** states the direction in words rather than arrows, how many words sit
+  in each group, and which activity is about to run. A session is a fixed number
+  of cards, so it ends.
+- **Asking** shows one task line, the card, and only the controls that stage
+  needs. Grading appears after the answer does.
+- **The verdict** names what was recorded and when the word comes back, so the
+  schedule stops being invisible.
+- **The summary** counts what was answered and when the soonest word returns.
+
+Two things came out of building it. Grading in quiz and writing was attributed
+to whatever card the outer deck was on rather than the word being answered; all
+three activities now share one machine, so an answer can only land on the word
+that was asked. And overturning a verdict used to write a second review, which
+marched the word up its interval ladder for one answer, so `PUT
+/api/progress/:wordId` gained a `correction` flag that re-grades the review
+already counted.
+
+Reset moved off the filter row, where it sat one unconfirmed click from wiping
+every word, and now asks first.
+
+The Hebrew translation table in `src/i18n/` was already written and unused. The
+session screens use it, so the interface is one language again.
+
+### D4 — Speaking drives the session (2026-09-06)
+
+The two microphone buttons appeared only after the answer was revealed and were
+wired to nothing: a correct or wrong utterance flashed a tick and vanished, with
+no progress written and no schedule moved. Before that they wrote silently, and
+in quiz mode against a different word than the one on screen.
+
+Speaking is now how a learner demonstrates knowledge. The card offers the graded
+utterance, optional pronunciation practice, and an explicit admission that asks
+for the answer, each labelled with what it costs. See the action table in
+[`voice-mode.md`](voice-mode.md).
+
+Pronunciation attempts are kept for the session and counted in the summary, but
+are **not persisted**. There is nowhere to put them: `WordProgress` holds a
+status, a next review and a count. Persisting them belongs with D1, the
+per-direction schema change, and should be done in the same pass.
+
+Speech recognition exists only in Chrome and Edge, so the spoken path is
+optional and the self-grading path is the fallback. The e2e suite says which
+path each spec is testing, and drives a fake recognizer rather than a
+microphone.
+
+### D5 — Teach before testing, and one path instead of a matrix (2026-09-06)
+
+Two complaints, one cause: the session asked learners to produce words they had
+never seen, and made them assemble their own sitting out of direction, group and
+activity before it would start.
+
+**A word with no progress row is taught, not tested.** It appears with its
+answer, with pronunciation practice offered, and a button that says it has been
+met. Meeting it schedules it as something being learned, and it is requeued to
+the end of the same sitting as a question, because meeting a word without ever
+being asked for it teaches nothing.
+
+**The setup screen offers one sitting.** `src/lib/plan.ts` builds it: everything
+due, oldest first, then a few new words, capped. The learner reads one line
+saying what it contains and presses one button. Direction, group and activity
+still exist, behind a disclosure, and choosing a group overrides the plan while
+keeping the teach-versus-test rule.
+
+The caps are the tap the method warns about: new cards are what generate
+tomorrow's reviews, so a sitting introduces at most a handful.
+
+This also surfaced a bug: with quiz or writing selected, a word being met for
+the first time was asked as a multiple-choice question. Teaching now overrides
+the activity, since there is nothing to answer with yet.
+
+Meeting a word ends on its own confirmation rather than the review verdict. The
+verdict named a grade and offered to correct it, which makes no sense for
+something the learner was never asked. It now says the word was added and that
+it will come back before the round ends.
+
+The app also says the Hungarian aloud when the card appears, whenever the
+Hungarian is on screen: always while teaching, and on the prompt side of a
+forward review. Ears before mouth, as the method puts it, and it never plays a
+side the learner is supposed to be recalling.
+
+### D6 — Hands-free, and a miss is not a failure (2026-09-06)
+
+Three corrections to the spoken path, all from watching it used.
+
+**A misheard answer no longer fails the card.** Recognition is unreliable enough
+that a miss is not evidence of forgetting, so nothing is recorded: the card says
+what it heard and waits for another go, or for the learner to say whether they
+knew it. Silence is treated the same way.
+
+**Teaching asks for a repetition.** Reading a word aloud and letting the learner
+click past it teaches nothing, so the microphone is the primary action on a new
+word and a good repetition is what moves it on.
+
+**Hands-free mode.** The app speaks, waits, listens and advances on its own. See
+[`voice-mode.md`](voice-mode.md).
+
+The grade buttons were also relabelled. They were named after the internal
+statuses, so a learner had to think in the app's vocabulary to answer a question
+about their own memory; they now read as the answer to the question asked.
+
+### D7 — A sitting's shape is fixed before it starts (2026-09-06)
+
+Every word met today is asked for later in the same sitting. That queue is now
+built when the sitting starts rather than growing as the learner goes, so the
+counter stops climbing under them and the length is known up front. The sitting
+is counted in words, since a new word simply appears twice.
+
+The confirmation after meeting a word shows the pair once more, and hands-free
+holds it longer than a review verdict, because that panel is the last look at
+the meaning before the word is asked for.
+
+### D8 — One spoken action per card (2026-09-06)
+
+A review card offered two microphones: say the answer, or practise saying the
+word already on screen. That asked the learner to choose what they were
+practising before they could answer, and in hands-free it was ambiguous which
+one the app had opened. Practising a word on screen is what meeting a word is
+for, so it now lives only there, and a review card has exactly one thing to say.
+
+An open microphone also says what it wants for as long as it is open, naming the
+language and whether it expects the word or the meaning.
+
+### D9 — Reviews are logged, not just summarised (2026-09-06)
+
+A status column can say where a word stands and nothing about how it got there,
+so the app could not tell whether a learner was improving, hesitating, or
+guessing.
+
+Every answered card now writes a `ReviewEvent`: direction, whether the word was
+being met or asked for, how the answer arrived, the grade, whether it was a
+correction, how long it took, and how often the learner spoke. `WordProgress`
+also carries `seenCount`, which counts introductions as well as questions, and
+`lapses`, the count of times a known word came back forgotten.
+
+`GET /api/stats` reads the log and answers the questions worth asking: how many
+words have been met and how many are known, how many keep slipping, the share
+of answers recalled in the last month, the typical time to answer, and how many
+days were practised. The setup screen shows them, with the accuracy line saying
+what the method says: between 90 and 95 percent means the intervals are right,
+and anything else is the schedule being wrong rather than the learner.
+
+The log is written in the same transaction as the state it explains, and it is
+deleted when a learner resets their progress, since it describes a run that no
+longer exists.
+
+Events carry the direction, which means the two directions can be told apart in
+the numbers before they are scheduled apart. That is the evidence D1 was
+missing.
+
+### D10 — Hands-free recovers on its own (2026-09-06)
+
+Hands-free stopped being hands-free the moment recognition failed: it waited
+for a button. It now listens again by itself after a miss, up to three attempts
+on a card, and then records the failure and moves on. One mishearing is still
+not a failure; three in a row with nothing heard means the learner cannot be
+heard, and the session should carry on rather than sit there listening.
+
+## What the other apps do
+
+Researched 2026-09-06 against Speak, Pimsleur, Rosetta Stone, Duolingo and
+Babbel, so it does not need doing again. Only the parts that bear on decisions
+here are kept.
+
+- **Spacing starts inside the session.** Pimsleur's published ladder is 5s, 25s,
+  2min, 10min, 1hr, 5hr, 1 day, 5 days, 25 days, 4 months, 2 years, and its
+  first four rungs fire before the lesson ends. Duolingo re-queues missed items
+  so a lesson cannot finish until they are right. We reinsert a newly met word
+  once, at the end of the sitting, and our short rungs can never fire because
+  the deck is fixed when the sitting starts.
+- **A mistake resets the interval.** Babbel's review manager runs 1, 4, 7, 14,
+  60 days and six months, and a mistake sends an item back to the next day. That
+  is P1 and P2, arrived at independently by a shipping product rather than only
+  by the book.
+- **Scaffolding fades rather than switching off.** Speak shows the sentence,
+  then progressively covers words, then cues from the learner's own language
+  with nothing shown. We jump from a word shown with its meaning straight to
+  being asked for it cold.
+- **Speech feedback is per word, not per utterance.** Speak lights up the words
+  it matched and leaves the rest neutral.
+- **Speaking can be turned down or off, by the learner.** Rosetta Stone has a
+  precision slider from easy to difficult and a checkbox that disables the
+  speech requirement; Duolingo's skip pauses speaking for fifteen minutes.
+- **Repeated failures get diagnosed, not just recorded.** After three failed
+  attempts Rosetta Stone offers reasons, too noisy, cannot hear you, speak more
+  softly, and an option to continue without speech.
+- **The lenient-grader trap.** Reviewers report Speak passing mispronounced
+  words and even reordered sentences. That is the failure our matcher exists to
+  avoid, so a complaint about a rejection argues for the override, not a softer
+  grader.
+- **Rejected: streaks, experience points and leagues.** They measure attendance.
+  The share of answers recalled measures learning, and the app already shows it.
+
 ## Proposed, not yet decided
 
 ### P1 — Pass or fail with a reset, instead of a three-way status
+
+Now supported from outside the book as well: Babbel's scheduler resets a missed
+item to the next day.
 
 The method grades a review as pass or fail, and a fail returns the card to the
 shortest interval. We store `known`, `learning` and `unknown` and never reset.
@@ -84,14 +285,15 @@ session. The method orders by frequency and deliberately scatters related words.
 This is a data change to `src/data`, plus a way to order a deck that is not
 topic order.
 
-### P6 — Measure accuracy
+### P6 — Use what is now being measured
 
-We cannot currently tell whether reviews are landing in the 90 to 95 percent
-band the schedule assumes. Without it, every interval-tuning discussion is
-guesswork.
+The log records latency, source and lapses; nothing reads them back into the
+schedule yet. The obvious first uses: treat a word with lapses as harder and
+shorten its ladder, and treat a very fast answer as a signal the interval was
+too short, which is the one thing the method says a third grade should mean.
 
-### P7 — A manual override for a wrong spoken verdict
+### P7 — Enforce the recall window
 
-The matcher is hardened but still has the last word. Hebrew recognition is weak
-enough that a learner needs to be able to say the grader got it wrong, which is
-also what keeps a failed recognition from poisoning the schedule.
+The method gives a review five to ten seconds. Nothing counts that down yet, and
+nothing ends a card the learner is staring at. This is the next piece of the
+guided session, and the natural place for the voice loop to attach.

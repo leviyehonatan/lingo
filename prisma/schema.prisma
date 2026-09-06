@@ -17,6 +17,7 @@ model User {
   sessions      Session[]
   progress      WordProgress[]
   dailyRecords  DailyRecord[]
+  reviewEvents  ReviewEvent[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -93,6 +94,7 @@ model Word {
   targetText String
   topic      Topic          @relation(fields: [topicId], references: [id], onDelete: Cascade)
   progress   WordProgress[]
+  reviewEvents ReviewEvent[]
 
   @@index([topicId])
 }
@@ -105,6 +107,13 @@ model WordProgress {
   lastReviewed BigInt   @default(0)
   reviewCount  Int      @default(0)
   nextReview   BigInt   @default(0)
+  /// How many times the word has been put in front of the learner, counting
+  /// the sittings where it was introduced as well as the ones where it was
+  /// asked for. Always at least `reviewCount`.
+  seenCount    Int      @default(0)
+  /// How often a word the learner had known came back unknown. The count that
+  /// says a word is not sticking, which `status` alone cannot show.
+  lapses       Int      @default(0)
   word         Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -121,4 +130,37 @@ model DailyRecord {
 
   @@unique([userId, date])
   @@index([userId])
+}
+
+/// One card, answered. An append-only log: `WordProgress` says where a word
+/// stands, and this says how it got there, which is what makes it possible to
+/// ask whether a learner is improving rather than only what they last pressed.
+model ReviewEvent {
+  id             String  @id @default(cuid())
+  userId         String
+  wordId         String
+  /// `forward` shows the Hungarian and asks for the Hebrew; `reverse` is the
+  /// other way round. Kept per event so the two can be told apart later, before
+  /// they are scheduled apart.
+  direction      String
+  /// `teach` for a word being met, `review` for one being asked about.
+  mode           String
+  /// How the answer arrived: speech, buttons, quiz, writing, or reveal, which
+  /// is the learner admitting they could not recall it.
+  source         String
+  /// The grade recorded.
+  status         String
+  /// True when the learner overturned the grade rather than earning it.
+  corrected      Boolean @default(false)
+  /// Time from the card appearing to the answer, in milliseconds. Null when it
+  /// could not be measured.
+  latencyMs      Int?
+  /// How many times the learner spoke on this card before it was settled.
+  spokenAttempts Int     @default(0)
+  reviewedAt     BigInt
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word           Word    @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@index([userId, reviewedAt])
+  @@index([userId, wordId])
 }

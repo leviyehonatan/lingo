@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:session": "node scripts/dev-session.mjs",
+    "dev:user": "node scripts/dev-user.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
