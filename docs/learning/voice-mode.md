@@ -1,8 +1,8 @@
 # Voice mode
 
-The hands-free study loop: the app shows a card, listens while the learner says
-the prompt aloud, reveals the meaning, then listens for the learner to say it.
-This capsule is the design, the constraints, and the parts the method in
+The spoken study loop: a new word is read aloud and repeated back, a known word
+is asked for and answered aloud, and the verdict says what was recorded. This
+capsule is the design, the constraints, and the parts the method in
 [`method.md`](method.md) settles for us.
 
 ## The language problem solves itself
@@ -17,21 +17,19 @@ Per card, in order:
 
 | Stage | Shown | Listening for | Recognition language |
 | --- | --- | --- | --- |
-| Prompt | prompt side | the learner reading it aloud | prompt side |
-| Reveal | both sides | nothing | none |
-| Recall | prompt side, answer hidden again | the answer | answer side |
-| Grade | verdict | nothing | none |
+| Meeting a word | both sides | the learner repeating it | Hungarian |
+| Being asked | the prompt side | the answer | the answer's language |
+| Verdict | both sides, with what was recorded | nothing | none |
 
-The existing reverse toggle swaps which language sits on which side. It is one
-machine with the languages parameterized, never two machines.
+The direction toggle swaps which language sits on which side. It is one machine
+with the languages parameterized, never two machines.
 
 ## What the method fixes for us
 
 - **Saying it aloud is part of every answer**, not a separate mode. Voice is the
   default way to review, not a feature bolted onto flashcards.
-- **The recall window is five to ten seconds.** That is the silence timeout, and
-  it is a deliberate ceiling, not a convenience. Silence past the window is a
-  miss, and a miss must immediately reveal the answer.
+- **The recall window is five to ten seconds.** Not yet enforced: the answer is
+  timed, but nothing holds the learner to the window.
 - **Grade pass or fail, and reset the interval on a fail.** No partial credit. A
   hesitant answer that lands is a pass.
 - **An instant, effortless answer is a signal the interval was too short**, which

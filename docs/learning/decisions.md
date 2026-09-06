@@ -247,13 +247,7 @@ session. The method orders by frequency and deliberately scatters related words.
 This is a data change to `src/data`, plus a way to order a deck that is not
 topic order.
 
-### P6 — Measure accuracy
-
-We cannot currently tell whether reviews are landing in the 90 to 95 percent
-band the schedule assumes. Without it, every interval-tuning discussion is
-guesswork.
-
-### P8 — Use what is now being measured
+### P6 — Use what is now being measured
 
 The log records latency, source and lapses; nothing reads them back into the
 schedule yet. The obvious first uses: treat a word with lapses as harder and
