@@ -20,6 +20,14 @@ on:
       - '.github/workflows/deploy-lingo.yml'
   workflow_dispatch:
 
+# Merging several PRs back to back starts a deploy for each. They would all
+# race for the server, and an older one could finish last and win. Only the
+# newest deploy matters: cancel whatever is still running when a new one
+# starts. Init DB is not in this group, so a migration is never cut short.
+concurrency:
+  group: deploy-lingo
+  cancel-in-progress: true
+
 jobs:
   # Lint + typecheck (.github/workflows/ci.yml) must pass before anything
   # reaches the server. A red check here fails the run without deploying.
