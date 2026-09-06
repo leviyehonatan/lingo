@@ -10,7 +10,7 @@ A Hebrew (RTL) vocabulary-flashcard app for learning **Hungarian → Hebrew**, b
 - **Spaced repetition** — every word is tracked as `known` / `learning` / `unknown` with a `nextReview` date
 - **Filters** — all / unknown / learning / known / due
 - **Daily goal** — reviewed-word counts per day, persisted as `DailyRecord` (default goal 20)
-- **Auth** — NextAuth v5 with Google OAuth and email/password credentials; `/study/*` routes are protected
+- **Auth** — NextAuth v5 with Google OAuth (the only sign-in method); `/study/*` routes are protected
 - **Hebrew UI** — RTL layout, Hebrew metadata, i18n context in `src/i18n/`
 
 ## Tech stack
@@ -47,8 +47,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | `DATABASE_URL` | PostgreSQL connection string |
 | `NEXTAUTH_SECRET` | Secret used to sign auth tokens |
 | `NEXTAUTH_URL` | Public URL of the app, e.g. `http://localhost:3000` |
-| `GOOGLE_CLIENT_ID` | Google OAuth client id (optional — credentials login works without it) |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret (optional) |
+| `GOOGLE_CLIENT_ID` | Google OAuth client id (required — Google is the only sign-in method) |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret (required) |
 
 `.env*` files are gitignored; `.env.example` documents the keys.
 
@@ -74,4 +74,4 @@ src/i18n/                 # Hebrew UI context + translations
 
 ## Deployment
 
-The multi-stage `Dockerfile` builds a standalone Next.js output (`next.config.ts` sets `output: "standalone"`, `prisma generate` runs at build time), so the app can run on any container platform. It needs a PostgreSQL instance and these env vars at runtime: `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and optionally the Google OAuth pair. Host-specific setup notes are kept out of this repo.
+The multi-stage `Dockerfile` builds a standalone Next.js output (`next.config.ts` sets `output: "standalone"`, `prisma generate` runs at build time), so the app can run on any container platform. It needs a PostgreSQL instance and these env vars at runtime: `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and the Google OAuth pair. Host-specific setup notes are kept out of this repo.
