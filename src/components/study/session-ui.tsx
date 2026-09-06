@@ -21,6 +21,7 @@ import {
   type Preferences,
   type Strictness,
 } from '@/lib/preferences';
+import { SPEECH_RATES } from '@/lib/speech-voice';
 import type { SessionPlan } from '@/lib/plan';
 import type { LearnerStats } from '@/lib/stats';
 import type {
@@ -100,6 +101,7 @@ export function SessionSetup({
   dailyGoal,
   sessionSize,
   canListen,
+  canSpeakHungarian,
   preferences,
   onPreferencesChange,
   stats,
@@ -122,6 +124,8 @@ export function SessionSetup({
   sessionSize: number;
   /** Whether the browser can hear at all, before the learner's own choice. */
   canListen: boolean;
+  /** Whether the device has a Hungarian voice to read words with. */
+  canSpeakHungarian: boolean;
   preferences: Preferences;
   onPreferencesChange: (change: Partial<Preferences>) => void;
   /** How the learner is doing, or null while it is still being fetched. */
@@ -298,6 +302,37 @@ export function SessionSetup({
               </label>
             </Fieldset>
           )}
+
+          <Fieldset legend={t.speechRate}>
+            {canSpeakHungarian ? (
+              <div className="grid gap-2 sm:grid-cols-3">
+                {SPEECH_RATES.map((rate) => (
+                  <Choice
+                    key={rate}
+                    selected={preferences.speechRate === rate}
+                    onClick={() => onPreferencesChange({ speechRate: rate })}
+                    data-rate={rate}
+                    label={
+                      rate === 0.6
+                        ? t.speechSlow
+                        : rate === 0.85
+                          ? t.speechNormal
+                          : t.speechFast
+                    }
+                  />
+                ))}
+              </div>
+            ) : (
+              <p data-no-voice className="rounded-xl border border-slate-700 p-3 text-xs">
+                <span className="block font-medium text-amber-300">
+                  {t.noHungarianVoice}
+                </span>
+                <span className="mt-1 block text-slate-400">
+                  {t.noHungarianVoiceHint}
+                </span>
+              </p>
+            )}
+          </Fieldset>
 
           <Fieldset legend={t.sessionLength}>
             <div className="grid gap-2 sm:grid-cols-4">

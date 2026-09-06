@@ -120,9 +120,10 @@ If a third grade exists it should mean *too easy, stretch the interval*, not
 Honest gap list, so nobody assumes the app already implements the above.
 
 - **Our cards are translation pairs.** A Hungarian string on one side, a Hebrew
-  string on the other, which is the exact model the book argues against. There
-  is no image, no audio, no phonetic transcription and no personal hook, because
-  the `Word` model has no columns for them.
+  string on the other, which is the model the book argues against. The app reads
+  the Hungarian aloud, so the sound is there, but there is no image, no phonetic
+  transcription and no personal hook. Images are deliberately not coming; see
+  D18 in `decisions.md`.
 - **We have no sound-first stage at all.** No minimal-pair trainer, no recordings,
   no articulation help. The app currently starts where the book says to start
   second.

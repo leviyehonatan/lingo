@@ -346,6 +346,36 @@ the server's timestamp. A device whose clock is off by hours would have shown
 nonsense, and a test that controls the page clock did show it. The write route
 now returns the delay it chose alongside the moment, and the session carries it.
 
+### D18 — Speech synthesis is the audio, and images are dropped (2026-09-06)
+
+**Images are not coming.** The method wants a picture instead of a translation
+so the learner cannot lean on their own language. Ours is a Hebrew speaker
+learning Hungarian, for whom the Hebrew word *is* the meaning, and the book is
+equally clear that the value of an image comes from the learner choosing it, not
+from a stock photo shipped with the deck. Buying the licensing and storage cost
+without that benefit would be paying for the wrong half.
+
+**The browser reads the words.** It costs nothing per word, covers the whole
+deck, and can be slowed down, which is what a learner imitating a sound needs.
+
+Two things that had to be handled for that to be honest:
+
+- A browser asked for a language it has no voice for does not refuse. It reads
+  the text with whatever voice it has, so Hungarian comes out in an English or
+  Hebrew accent. For an app whose first principle is pronunciation that is worse
+  than silence, so the app now says nothing unless a Hungarian voice exists, and
+  says why on the setup screen.
+- Speed is the learner's, slow, normal or natural, remembered with their other
+  preferences.
+
+**Recorded audio remains available if the ear trainer is ever built.** Every one
+of a twenty-word sample from our own deck has a pronunciation recording on
+Wikimedia Commons, around thirteen kilobytes each as Ogg Vorbis, mostly CC
+BY-SA, which obliges naming the author and licence. The whole Hungarian category
+is about four thousand files. Two caveats for whoever picks it up: Safari has
+historically not decoded Ogg, so mobile needs a transcode, and Forvo is not an
+option at any price, since its terms forbid caching and meter every playback.
+
 ## Proposed, not yet decided
 
 ### P1 — Collapse the three grades into pass and fail
@@ -355,17 +385,22 @@ grades. The method wants two, and ours are three. Worth deciding on evidence
 now that the log records which grade was chosen: if the middle one is rarely
 used, or used where a pass belongs, it should go.
 
-### P3 — Cards carry meaning, not a translation
+### P3 — Cards carry more than two strings
 
-Audio, an image and a phonetic transcription on the `Word` model, so a card can
-stop being a pair of strings. This is the largest item on the list. It needs
-content, not just schema, and it is what most of the method's advantage rests
-on.
+Images are decided against (D18) and audio is handled by the browser, so what is
+left of this item is a phonetic transcription, which the method says stops a
+learner producing a spelling-contaminated sound. Hungarian spelling is shallow
+enough that the book itself says recordings will do, so this is low priority.
+Example sentences would be the more valuable addition, and are the method's own
+next step after single words.
 
 ### P4 — A minimal-pairs ear trainer before vocabulary
 
-The method's first stage, which we skip entirely. Needs audio assets. See the
-ear-training section of [`voice-mode.md`](voice-mode.md).
+The method's first stage, which we skip entirely. Synthesis is not a good enough
+source here: the same engine producing both members of a pair gives them the
+same idiosyncrasies, so the discrimination task is not the one the learner needs
+to pass. This is the one place real recordings are worth harvesting, and D18
+records where they are.
 
 ### P5 — Frequency ordering
 
