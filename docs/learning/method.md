@@ -134,12 +134,10 @@ Honest gap list, so nobody assumes the app already implements the above.
   the book warns about, and there is no frequency ordering anywhere. Within a
   sitting the order is now due-first rather than arbitrary, but the pool a topic
   draws from is still a themed list.
-- **The intervals are still the same for everyone.** A word's position now
-  follows its own run of recalls, but the rungs themselves are fixed and do not
-  respond to how a learner is doing overall.
-- **What is measured is not yet used.** Accuracy, answer times and lapses are
-  recorded and shown, but nothing feeds them back into the intervals, so the
-  schedule still cannot correct itself.
+- **The rungs are the same for everyone.** A word's interval now follows its
+  own run of recalls and is bent by its own lapses and answer times (D15), but
+  the ladder itself is fixed and nothing reads how a learner is doing overall,
+  so a learner who finds everything easy climbs no faster than one who does not.
 
 Closed since this was written. A word the learner has never met is taught
 rather than tested, and the session decides its own contents instead of asking
@@ -148,7 +146,8 @@ the learner to assemble one. Spoken and typed answers are graded by
 accepts a fragment. The study screen is a guided session that states its task at
 every step, asks the learner to answer aloud, shows what each answer cost and
 when the word returns, and lets a wrong verdict be overturned without charging
-the word a second review.
+the word a second review. A word that is missed comes back inside the same
+sitting, and what the log records about a word now feeds its next interval.
 
 None of these are bugs against the current spec. They are the distance between
 what lingo is and what the method asks for, and they are the menu that
