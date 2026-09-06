@@ -911,6 +911,7 @@ export function GuidedCard({
           ) : (
             <p data-no-speech className="text-center text-xs text-slate-500">
               {t.noSpeech}
+              <span className="mt-1 block text-slate-600">{t.noSpeechRemedy}</span>
             </p>
           )}
 

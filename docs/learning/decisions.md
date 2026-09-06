@@ -376,6 +376,19 @@ is about four thousand files. Two caveats for whoever picks it up: Safari has
 historically not decoded Ogg, so mobile needs a transcode, and Forvo is not an
 option at any price, since its terms forbid caching and meter every playback.
 
+### D19 — Listening is Chrome and Edge only, deliberately (2026-09-06)
+
+The Web Speech API exists nowhere else, and the alternatives all cost more than
+they are worth here: a server-side recogniser means audio upload, latency and a
+bill per utterance, and a second implementation means two spoken paths to keep
+working. So there is one, it is the browser's, and the rest of the world gets
+the button session.
+
+That session is a complete way to study rather than a stub: the same cards, the
+same schedule, self-grading in place of a spoken answer. What was missing was
+telling those learners what would work, so the notice now names Chrome and Edge
+instead of only saying this browser cannot hear.
+
 ## Proposed, not yet decided
 
 ### P1 — Collapse the three grades into pass and fail

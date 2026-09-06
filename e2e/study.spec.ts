@@ -55,6 +55,8 @@ test.describe('study session', () => {
       'נזכרו במשמעות בעברית'
     );
     await expect(page.locator('[data-no-speech]')).toBeVisible();
+    // And says what would work, rather than leaving it a dead end.
+    await expect(page.locator('[data-no-speech]')).toContainText('Chrome');
     await expect(page.locator('[data-card-answer]')).toHaveCount(0);
     await expect(page.locator('[data-grade="known"]')).toHaveCount(0);
 
