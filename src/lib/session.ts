@@ -156,23 +156,6 @@ export function advance(state: SessionState): SessionState {
   return { ...state, index: next, stage: 'prompt' };
 }
 
-/**
- * Put a word just met back at the end of the sitting, as a question this time.
- *
- * Meeting a word and never being asked for it teaches nothing: the test is what
- * builds the memory. So a taught card returns before the learner leaves, which
- * is also the shortest interval the schedule could offer and the one the method
- * asks for.
- */
-export function requeueForReview(state: SessionState, cardId: string): SessionState {
-  const card = state.cards.find((c) => c.id === cardId);
-  if (!card || state.stage === 'done') return state;
-  // Only the introduction is requeued, and only once.
-  const alreadyQueued = state.cards.filter((c) => c.id === cardId).length > 1;
-  if (card.mode !== 'teach' || alreadyQueued) return state;
-  return { ...state, cards: [...state.cards, { ...card, mode: 'review' }] };
-}
-
 /** Stop early. Whatever was answered still counts. */
 export function endSession(state: SessionState): SessionState {
   return { ...state, stage: 'done' };

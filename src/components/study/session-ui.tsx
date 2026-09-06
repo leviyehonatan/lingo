@@ -455,18 +455,26 @@ export function GuidedCard({
    */
   const autoListenDelay = handsFree ? (hungarianOnScreen ? 1800 : 600) : null;
 
-  // Hands-free means the verdict is read, not clicked past.
+  // Hands-free means the verdict is read, not clicked past. A new word gets
+  // longer, because that panel is where its meaning is shown one last time.
   useEffect(() => {
     if (!handsFree || stage !== 'feedback') return;
-    const id = setTimeout(onNext, 2200);
+    const id = setTimeout(onNext, card.mode === 'teach' ? 3500 : 2200);
     return () => clearTimeout(id);
-  }, [handsFree, stage, onNext, card.id]);
+  }, [handsFree, stage, onNext, card.id, card.mode]);
+  // Which language the learner is being asked to produce, said out loud in the
+  // task line rather than left to be inferred from the card.
+  const answerIsHebrew = promptHu;
   const task = teaching
-    ? t.teachTask
+    ? t.teachLearnThis
     : stage === 'prompt'
       ? canListen
-        ? t.taskSpeak
-        : t.taskRecall
+        ? answerIsHebrew
+          ? t.taskSayMeaning
+          : t.taskSayWord
+        : answerIsHebrew
+          ? t.taskRecallMeaning
+          : t.taskRecallWord
       : stage === 'reveal'
         ? t.taskGrade
         : t.taskVerdict;
@@ -489,6 +497,9 @@ export function GuidedCard({
         data-flashcard
         className="rounded-2xl border border-slate-700 bg-slate-800 px-6 py-10 text-center"
       >
+        <span className="mb-1 block text-[0.7rem] uppercase tracking-wide text-slate-500">
+          {promptHu ? t.langHungarian : t.langHebrew}
+        </span>
         <span
           data-card-prompt
           className="block text-3xl font-medium"
@@ -509,6 +520,11 @@ export function GuidedCard({
         {(teaching || stage !== 'prompt') && (
           <>
             <div className="mx-auto my-5 h-px w-16 bg-slate-700" />
+            <span className="mb-1 block text-[0.7rem] uppercase tracking-wide text-slate-500">
+              {promptHu ? t.langHebrew : t.langHungarian}
+              {' · '}
+              {promptHu ? t.sideMeaning : t.sideWord}
+            </span>
             <span
               data-card-answer
               className="block text-3xl font-medium text-indigo-200"
@@ -531,7 +547,7 @@ export function GuidedCard({
                 key={card.id}
                 expectedText={promptHu ? card.prompt : card.answer}
                 lang="hu-HU"
-                label={t.teachRepeat}
+                label={t.teachRepeatHu}
                 hint={t.teachRepeatHint}
                 graded
                 dataAttr="data-teach-repeat"
@@ -571,7 +587,7 @@ export function GuidedCard({
               <SpeakButton
                 expectedText={card.answer}
                 lang={promptHu ? 'he-IL' : 'hu-HU'}
-                label={t.speakAnswer}
+                label={answerIsHebrew ? t.speakMeaningHe : t.speakWordHu}
                 hint={t.speakAnswerHint}
                 graded
                 dataAttr="data-speak-answer"
@@ -665,6 +681,8 @@ export function GuidedCard({
         answer &&
         (card.mode === 'teach' ? (
           <Introduced
+            card={card}
+            promptHu={promptHu}
             answer={answer}
             spokeWell={repeated?.accepted ?? false}
             onNext={onNext}
@@ -686,16 +704,29 @@ export function GuidedCard({
  * they were not asked anything, so there is nothing to have got wrong.
  */
 function Introduced({
+  card,
+  promptHu,
   answer,
   spokeWell,
   onNext,
 }: {
+  card: SessionCard;
+  promptHu: boolean;
   answer: SessionAnswer;
   spokeWell: boolean;
   onNext: () => void;
 }) {
   return (
     <div className="mt-6 rounded-xl border border-slate-700 bg-slate-800/60 p-4">
+      {/* The pair, once more and together: this is the last look before the
+          word is asked for later in the sitting. */}
+      <p data-introduced-pair className="mb-3 text-center text-lg">
+        <span dir={dirAttr(promptHu)}>{card.prompt}</span>
+        <span className="mx-2 text-slate-500">=</span>
+        <span className="text-indigo-200" dir={dirAttr(!promptHu)}>
+          {card.answer}
+        </span>
+      </p>
       {spokeWell && (
         <p data-teach-spoke className="mb-1 text-center text-xs text-emerald-300">
           {t.teachSpokeWell}

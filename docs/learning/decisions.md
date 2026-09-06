@@ -154,6 +154,17 @@ The grade buttons were also relabelled. They were named after the internal
 statuses, so a learner had to think in the app's vocabulary to answer a question
 about their own memory; they now read as the answer to the question asked.
 
+### D7 — A sitting's shape is fixed before it starts (2026-09-06)
+
+Every word met today is asked for later in the same sitting. That queue is now
+built when the sitting starts rather than growing as the learner goes, so the
+counter stops climbing under them and the length is known up front. The sitting
+is counted in words, since a new word simply appears twice.
+
+The confirmation after meeting a word shows the pair once more, and hands-free
+holds it longer than a review verdict, because that panel is the last look at
+the meaning before the word is asked for.
+
 ## Proposed, not yet decided
 
 ### P1 — Pass or fail with a reset, instead of a three-way status

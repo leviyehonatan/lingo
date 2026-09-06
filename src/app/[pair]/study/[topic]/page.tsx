@@ -42,7 +42,6 @@ import {
   lastAnswer,
   noteAttempt,
   recordAnswer,
-  requeueForReview,
   revealAnswer,
   sessionProgress,
   startSession,
@@ -254,18 +253,32 @@ function StudyPageInner() {
       };
     };
 
-    if (deck === null) {
-      // The plan is already ordered: due first, then new. Do not shuffle it.
-      return plan.cards
-        .map((planned) => toCard(planned.id, planned.mode))
-        .filter((card): card is SessionCard => card !== null);
-    }
+    const chosen =
+      deck === null
+        ? // The plan is already ordered: due first, then new. Do not shuffle it.
+          plan.cards
+        : shuffle(
+            words.filter((w) =>
+              new Set(
+                filterWordIds(wordIds, progress.byWord, deck, Date.now())
+              ).has(w.id)
+            )
+          )
+            .slice(0, SESSION_SIZE)
+            .map((w) => ({ id: w.id, mode: modeFor(progress.byWord, w.id) }));
 
-    const ids = new Set(filterWordIds(wordIds, progress.byWord, deck, Date.now()));
-    return shuffle(words.filter((w) => ids.has(w.id)))
-      .slice(0, SESSION_SIZE)
-      .map((w) => toCard(w.id, modeFor(progress.byWord, w.id)))
+    const cards = chosen
+      .map((planned) => toCard(planned.id, planned.mode))
       .filter((card): card is SessionCard => card !== null);
+
+    // Meeting a word is not learning it, so every word introduced today is
+    // asked for later in the same sitting. Queued up front rather than as the
+    // learner goes, so the sitting's length is known before it starts.
+    const introduced = cards
+      .filter((card) => card.mode === 'teach')
+      .map((card) => ({ ...card, mode: 'review' as const }));
+
+    return [...cards, ...introduced];
   }, [words, wordIds, progress.byWord, deck, direction, plan]);
 
   const beginSession = useCallback(() => {
@@ -359,14 +372,8 @@ function StudyPageInner() {
    * rather than something answered: there was no question to get right.
    */
   const handleTaught = useCallback(() => {
-    const cardId = card?.id;
     void grade('learning');
-    // Meeting a word is not learning it, so it comes back as a question before
-    // the sitting ends.
-    if (cardId) {
-      setSession((prev) => (prev ? requeueForReview(prev, cardId) : prev));
-    }
-  }, [card, grade]);
+  }, [grade]);
 
   /**
    * Asking for the answer is allowed, and it is an admission: with a microphone

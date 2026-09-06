@@ -21,9 +21,10 @@ test.beforeEach(async ({ page }) => {
 
 test('offers one sitting, and says what is in it', async ({ page }) => {
   await page.goto(STUDY_URL);
-  // Nothing has been met yet, so the whole sitting is new words.
+  // Nothing has been met yet, so the whole sitting is new words: five to meet,
+  // and the same five asked for afterwards, which is ten cards.
   await expect(page.locator('[data-plan-headline]')).toHaveText('5 מילים חדשות');
-  await expect(page.locator('[data-session-start]')).toContainText('5');
+  await expect(page.locator('[data-session-start]')).toContainText('5 מילים');
 
   // The filters still exist, but out of the way.
   await expect(page.locator('[data-session-options]')).toHaveCount(0);
@@ -37,7 +38,7 @@ test('teaches a word it has never asked about, instead of testing it', async ({ 
 
   await expect(page.locator('[data-teach-badge]')).toBeVisible();
   await expect(page.locator('[data-session-task]')).toHaveText(
-    'הכירו את המילה ואמרו אותה בקול'
+    'זו המילה החדשה והמשמעות שלה'
   );
   // The answer is on screen from the start: this is not a question.
   await expect(page.locator('[data-card-answer]')).toBeVisible();
@@ -61,8 +62,10 @@ test('a word met this sitting comes back as a question before it ends', async ({
   await expect(page.locator('[data-verdict-interval]')).toHaveText('חוזרת בעוד 10 דקות');
   await expect.poll(async () => (await progressRows(page))[0]?.status).toBe('learning');
 
-  // The sitting grew by one: the word returns at the end, as a question.
-  await expect(page.locator('[data-session-position]')).toHaveText('כרטיס 1 מתוך 6');
+  // Every word met today is asked for later in the same sitting, and the
+  // sitting says so from the start rather than growing as it goes.
+  await expect(page.locator('[data-session-position]')).toHaveText('כרטיס 1 מתוך 10');
+  await expect(page.locator('[data-introduced-pair]')).toBeVisible();
 
   await page.locator('[data-session-next]').click();
   for (let i = 0; i < 4; i++) {
@@ -178,4 +181,47 @@ test('teaching asks the learner to say the word, not just to click past it', asy
   await say(page, shown);
   await expect(page.locator('[data-teach-spoke]')).toBeVisible();
   await expect(page.locator('[data-introduced]')).toBeVisible();
+});
+
+test('says which language it wants, on both sides of every card', async ({ page }) => {
+  await page.goto(STUDY_URL);
+  await page.locator('[data-session-start]').click();
+
+  // A new word: both languages are labelled, and the meaning is on screen.
+  const card = page.locator('[data-flashcard]');
+  await expect(card).toContainText('הונגרית');
+  await expect(card).toContainText('עברית · המשמעות');
+
+  // Meeting it, then reaching the question, which names the language wanted.
+  await page.locator('[data-teach-got]').click();
+  await page.locator('[data-session-next]').click();
+  for (let i = 0; i < 4; i++) {
+    await page.locator('[data-teach-got]').click();
+    await page.locator('[data-session-next]').click();
+  }
+
+  await expect(page.locator('[data-session-task]')).toHaveText(
+    'נזכרו במשמעות בעברית'
+  );
+});
+
+test('asks in Hungarian when the direction is reversed', async ({ page }) => {
+  await page.goto(STUDY_URL);
+  await page.locator('[data-options-toggle]').click();
+  await page.locator('[data-direction="reverse"]').click();
+  await page.locator('[data-session-start]').click();
+
+  await expect(page.locator('[data-flashcard]')).toContainText('עברית');
+  await expect(page.locator('[data-flashcard]')).toContainText('הונגרית · המילה');
+
+  await page.locator('[data-teach-got]').click();
+  await page.locator('[data-session-next]').click();
+  for (let i = 0; i < 4; i++) {
+    await page.locator('[data-teach-got]').click();
+    await page.locator('[data-session-next]').click();
+  }
+
+  await expect(page.locator('[data-session-task]')).toHaveText(
+    'נזכרו במילה בהונגרית'
+  );
 });

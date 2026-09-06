@@ -73,6 +73,13 @@ without speaking stays available, and is the only path on a browser that cannot
 hear. What follows says the word was added and when it returns, with no grade
 and no correction row, because nothing was asked.
 
+## Saying which language
+
+Nothing on a card should leave the learner guessing which language is wanted.
+Both sides carry their language, the hidden side says whether it holds the word
+or the meaning, and the task line names the language it is asking for: say the
+meaning in Hebrew, or say the word in Hungarian, swapping with the direction.
+
 ## Hands-free
 
 Turned on from the setup screen and remembered per browser. The app reads the

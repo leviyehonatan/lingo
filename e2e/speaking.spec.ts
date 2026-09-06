@@ -52,7 +52,7 @@ test.beforeEach(async ({ page }) => {
 test('the card asks to be answered aloud before it shows anything', async ({ page }) => {
   await startSession(page);
   await expect(page.locator('[data-teach-badge]')).toHaveCount(0);
-  await expect(page.locator('[data-session-task]')).toHaveText('אמרו את התשובה בקול');
+  await expect(page.locator('[data-session-task]')).toHaveText('אמרו בקול את המשמעות בעברית');
   await expect(page.locator('[data-speak-answer]')).toBeVisible();
   await expect(page.locator('[data-speak-practice]')).toBeVisible();
   // Nothing is graded and nothing is revealed until the learner acts.
@@ -151,7 +151,7 @@ test('pronunciation practice never touches the schedule', async ({ page }) => {
   await say(page, shown);
 
   // Still being asked, nothing graded, nothing written.
-  await expect(page.locator('[data-session-task]')).toHaveText('אמרו את התשובה בקול');
+  await expect(page.locator('[data-session-task]')).toHaveText('אמרו בקול את המשמעות בעברית');
   await expect(page.locator('[data-verdict]')).toHaveCount(0);
   await page.waitForTimeout(300);
   expect((await progressRows(page))[0].review_count).toBe(1);

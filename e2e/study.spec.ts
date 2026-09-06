@@ -49,7 +49,7 @@ test.describe('study session', () => {
 
     // Being asked: no answer and no grading on screen yet.
     await expect(page.locator('[data-session-task]')).toHaveText(
-      'נזכרים בתשובה ואומרים אותה בקול'
+      'נזכרו במשמעות בעברית'
     );
     await expect(page.locator('[data-no-speech]')).toBeVisible();
     await expect(page.locator('[data-card-answer]')).toHaveCount(0);
