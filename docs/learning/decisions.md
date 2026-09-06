@@ -77,6 +77,28 @@ every word, and now asks first.
 The Hebrew translation table in `src/i18n/` was already written and unused. The
 session screens use it, so the interface is one language again.
 
+### D4 — Speaking drives the session (2026-09-06)
+
+The two microphone buttons appeared only after the answer was revealed and were
+wired to nothing: a correct or wrong utterance flashed a tick and vanished, with
+no progress written and no schedule moved. Before that they wrote silently, and
+in quiz mode against a different word than the one on screen.
+
+Speaking is now how a learner demonstrates knowledge. The card offers the graded
+utterance, optional pronunciation practice, and an explicit admission that asks
+for the answer, each labelled with what it costs. See the action table in
+[`voice-mode.md`](voice-mode.md).
+
+Pronunciation attempts are kept for the session and counted in the summary, but
+are **not persisted**. There is nowhere to put them: `WordProgress` holds a
+status, a next review and a count. Persisting them belongs with D1, the
+per-direction schema change, and should be done in the same pass.
+
+Speech recognition exists only in Chrome and Edge, so the spoken path is
+optional and the self-grading path is the fallback. The e2e suite says which
+path each spec is testing, and drives a fake recognizer rather than a
+microphone.
+
 ## Proposed, not yet decided
 
 ### P1 — Pass or fail with a reset, instead of a three-way status
@@ -118,6 +140,11 @@ topic order.
 We cannot currently tell whether reviews are landing in the 90 to 95 percent
 band the schedule assumes. Without it, every interval-tuning discussion is
 guesswork.
+
+### P8 — Persist pronunciation attempts
+
+Counted per session today, forgotten afterwards. Needs somewhere to live; see
+D4 and D1.
 
 ### P7 — Enforce the recall window
 

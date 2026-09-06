@@ -32,11 +32,30 @@ export interface SessionAnswer {
   corrected: boolean;
 }
 
+/**
+ * What the learner said out loud, and whether the grader accepted it.
+ *
+ * `recall` is the real test: saying the answer before it is shown. It decides
+ * the grade. `pronunciation` is saying the word that is already on screen,
+ * which practises the mouth and must never touch the schedule.
+ */
+export type AttemptKind = 'pronunciation' | 'recall';
+
+export interface SessionAttempt {
+  cardId: string;
+  kind: AttemptKind;
+  /** The transcript, so the learner can see what the app thought it heard. */
+  heard: string;
+  accepted: boolean;
+  at: number;
+}
+
 export interface SessionState {
   cards: readonly SessionCard[];
   index: number;
   stage: SessionStage;
   answers: readonly SessionAnswer[];
+  attempts: readonly SessionAttempt[];
 }
 
 /** A session over no cards is already finished; there is nothing to ask. */
@@ -46,6 +65,7 @@ export function startSession(cards: readonly SessionCard[]): SessionState {
     index: 0,
     stage: cards.length === 0 ? 'done' : 'prompt',
     answers: [],
+    attempts: [],
   };
 }
 
@@ -135,6 +155,36 @@ export function endSession(state: SessionState): SessionState {
   return { ...state, stage: 'done' };
 }
 
+/**
+ * Record something the learner said. Attempts are kept whatever the outcome,
+ * so the session can show what it heard rather than only whether it approved.
+ */
+export function noteAttempt(
+  state: SessionState,
+  kind: AttemptKind,
+  heard: string,
+  accepted: boolean,
+  now: number
+): SessionState {
+  const card = currentCard(state);
+  if (!card || state.stage === 'done') return state;
+  return {
+    ...state,
+    attempts: [...state.attempts, { cardId: card.id, kind, heard, accepted, at: now }],
+  };
+}
+
+/** What the learner has said about this card so far, in order. */
+export function attemptsFor(
+  state: SessionState,
+  cardId: string,
+  kind?: AttemptKind
+): SessionAttempt[] {
+  return state.attempts.filter(
+    (a) => a.cardId === cardId && (kind === undefined || a.kind === kind)
+  );
+}
+
 /** The verdict currently on screen, if any. */
 export function lastAnswer(state: SessionState): SessionAnswer | undefined {
   return state.stage === 'feedback' ? state.answers[state.answers.length - 1] : undefined;
@@ -161,6 +211,10 @@ export interface SessionSummary {
   learning: number;
   unknown: number;
   corrected: number;
+  /** Cards whose meaning the learner said out loud and the grader accepted. */
+  recalledAloud: number;
+  /** Cards the learner practised pronouncing, whatever the outcome. */
+  pronounced: number;
   /**
    * How long until the soonest word from this session comes back, measured
    * from when it was answered. Null when nothing was graded, or when every
@@ -181,8 +235,18 @@ export function summarize(state: SessionState): SessionSummary {
     learning: 0,
     unknown: 0,
     corrected: 0,
+    recalledAloud: 0,
+    pronounced: 0,
     soonestDelay: null,
   };
+  const recalled = new Set<string>();
+  const pronounced = new Set<string>();
+  for (const attempt of state.attempts) {
+    if (attempt.kind === 'pronunciation') pronounced.add(attempt.cardId);
+    else if (attempt.accepted) recalled.add(attempt.cardId);
+  }
+  summary.recalledAloud = recalled.size;
+  summary.pronounced = pronounced.size;
   for (const answer of state.answers) {
     summary[answer.status]++;
     if (answer.corrected) summary.corrected++;

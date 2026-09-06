@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { STUDY_URL } from './fixtures';
+import { disableSpeech } from './speech';
 
 const PROGRESS_URL = /\/api\/progress(\?|$)/;
 
@@ -22,6 +23,10 @@ async function startSession(page: Page) {
  */
 test.describe('deck stability', () => {
   test.beforeEach(async ({ page }) => {
+    // These cover scheduling and the deck, through the self-grading path a
+    // browser without speech recognition gets. The spoken path, which grades
+    // from what it hears, is covered in speaking.spec.ts.
+    await disableSpeech(page);
     await page.request.delete('/api/progress');
   });
 

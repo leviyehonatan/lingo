@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { PAIR, STUDY_URL, TOPIC_ID } from './fixtures';
+import { disableSpeech } from './speech';
 
 interface ProgressEntry {
   word_id: string;
@@ -53,6 +54,10 @@ async function promptWord(page: Page): Promise<string> {
 
 test.describe('study session', () => {
   test.beforeEach(async ({ page }) => {
+    // These cover scheduling and the deck, through the self-grading path a
+    // browser without speech recognition gets. The spoken path, which grades
+    // from what it hears, is covered in speaking.spec.ts.
+    await disableSpeech(page);
     // Every case starts from a clean slate; the specs share one test user.
     await page.request.delete('/api/progress');
   });
@@ -78,6 +83,7 @@ test.describe('study session', () => {
     await expect(page.locator('[data-session-task]')).toHaveText(
       'נזכרים בתשובה ואומרים אותה בקול'
     );
+    await expect(page.locator('[data-no-speech]')).toBeVisible();
     await expect(page.locator('[data-card-answer]')).toHaveCount(0);
     await expect(page.locator('[data-grade="known"]')).toHaveCount(0);
 

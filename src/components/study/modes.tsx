@@ -181,54 +181,77 @@ declare global {
   }
 }
 
-function useVoiceRecognition({
+/** Nothing to listen with: Safari and Firefox ship no usable recognizer. */
+export function speechAvailable(): boolean {
+  if (typeof window === 'undefined') return false;
+  return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+export interface SpokenResult {
+  heard: string;
+  accepted: boolean;
+}
+
+type ListenState = 'idle' | 'listening' | 'thinking';
+
+/**
+ * One utterance, judged against what the card expects.
+ *
+ * The hook reports the outcome instead of deciding what it means: the session
+ * decides whether an utterance was practice or the graded recall.
+ */
+function useListening({
   expectedText,
   lang,
-  onCorrect,
-  onWrong,
+  onResult,
 }: {
   expectedText: string;
   lang: string;
-  onCorrect: () => void;
-  onWrong: () => void;
+  onResult: (result: SpokenResult) => void;
 }) {
-  const [listening, setListening] = useState(false);
-  const [processing, setProcessing] = useState(false);
-  const [result, setResult] = useState<{
-    transcript: string;
-    correct: boolean;
-  } | null>(null);
-  const [partial, setPartial] = useState<string | null>(null);
+  const [state, setState] = useState<ListenState>('idle');
+  const [partial, setPartial] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  const listeningRef = useRef(false);
-  const callbacksRef = useRef({ onCorrect, onWrong, expectedText, lang });
+  const settledRef = useRef(false);
+  const latest = useRef({ expectedText, lang, onResult });
 
   useEffect(() => {
-    callbacksRef.current = { onCorrect, onWrong, expectedText, lang };
+    latest.current = { expectedText, lang, onResult };
   });
 
+  const stop = useCallback(() => {
+    try {
+      recognitionRef.current?.stop();
+    } catch {}
+  }, []);
+
   const start = useCallback(() => {
-    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognitionCtor) {
-      setResult({
-        transcript: t.errNoBrowser,
-        correct: false,
-      });
-      window.setTimeout(() => setResult(null), 3000);
+    const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Ctor) {
+      setError(t.errNoBrowser);
       return;
     }
-    if (listeningRef.current) return;
+    try {
+      recognitionRef.current?.abort();
+    } catch {}
 
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort();
-      } catch {}
-    }
-
-    const recognition = new SpeechRecognitionCtor();
-    recognition.lang = callbacksRef.current.lang;
+    const recognition = new Ctor();
+    recognition.lang = latest.current.lang;
     recognition.interimResults = true;
     recognition.maxAlternatives = 3;
+    settledRef.current = false;
+
+    const settle = (heard: string, accepted: boolean) => {
+      if (settledRef.current) return;
+      settledRef.current = true;
+      setState('idle');
+      setPartial('');
+      latest.current.onResult({ heard, accepted });
+      try {
+        recognition.stop();
+      } catch {}
+    };
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let transcript = '';
@@ -239,49 +262,23 @@ function useVoiceRecognition({
       }
       transcript = transcript.trim();
 
-      // The engine ranks several candidates per utterance and the answer is
-      // not always the one it ranks first, so every candidate for the latest
-      // segment gets a chance alongside the transcript shown to the learner.
+      // The engine ranks several candidates and the answer is not always the
+      // one it ranks first, so every candidate gets a chance.
       const candidates = new Set<string>();
       if (transcript) candidates.add(transcript);
-      const latest = event.results[event.results.length - 1];
-      for (let a = 0; a < (latest?.length ?? 0); a++) {
-        const alternative = latest[a]?.transcript?.trim();
+      const newest = event.results[event.results.length - 1];
+      for (let a = 0; a < (newest?.length ?? 0); a++) {
+        const alternative = newest[a]?.transcript?.trim();
         if (alternative) candidates.add(alternative);
       }
 
-      const correct = matchesAnyAlternative(
-        [...candidates],
-        callbacksRef.current.expectedText
-      );
-
       setPartial(transcript);
-
-      if (correct) {
-        setProcessing(false);
-        setResult({ transcript, correct: true });
-        setPartial(null);
-        callbacksRef.current.onCorrect();
-        try {
-          recognition.stop();
-        } catch {}
-        window.setTimeout(() => setResult(null), 2500);
-      } else if (isFinal && transcript.length > 0) {
-        setProcessing(false);
-        setResult({ transcript, correct: false });
-        setPartial(null);
-        callbacksRef.current.onWrong();
-        try {
-          recognition.stop();
-        } catch {}
-        window.setTimeout(() => setResult(null), 2500);
-      }
+      const accepted = matchesAnyAlternative([...candidates], latest.current.expectedText);
+      // A wrong guess is only final once the learner has stopped talking.
+      if (accepted || (isFinal && transcript)) settle(transcript, accepted);
     };
 
     recognition.onerror = (event: SpeechRecognitionError) => {
-      setListening(false);
-      listeningRef.current = false;
-      const err = event.error || 'unknown';
       const messages: Record<string, string> = {
         'not-allowed': t.errNotAllowed,
         'no-speech': t.errNoSpeech,
@@ -290,131 +287,97 @@ function useVoiceRecognition({
         'audio-capture': t.errAudioCapture,
         'service-not-allowed': t.errServiceNotAllowed,
       };
-      setResult({
-        transcript: messages[err] || `Error: ${err}`,
-        correct: false,
-      });
-      window.setTimeout(() => setResult(null), 4000);
+      setError(messages[event.error] ?? event.error);
+      setState('idle');
+      settledRef.current = true;
     };
 
     recognition.onend = () => {
-      setListening(false);
-      setProcessing(true);
-      listeningRef.current = false;
+      if (settledRef.current) return;
+      // Silence counts as an answer the learner could not produce.
+      settle('', false);
     };
 
     recognitionRef.current = recognition;
+    setError(null);
+    setPartial('');
     try {
       recognition.start();
     } catch {
-      setResult({ transcript: t.errMicStart, correct: false });
-      window.setTimeout(() => setResult(null), 3000);
+      setError(t.errMicStart);
       return;
     }
-    listeningRef.current = true;
-    setListening(true);
-    setProcessing(false);
-    setResult(null);
-    setPartial(null);
+    setState('listening');
+  }, []);
 
-    window.setTimeout(() => {
+  useEffect(() => {
+    return () => {
       try {
-        recognition.stop();
+        recognitionRef.current?.abort();
       } catch {}
-    }, 8000);
+    };
   }, []);
 
-  const stop = useCallback(() => {
-    try {
-      if (recognitionRef.current) recognitionRef.current.stop();
-    } catch {}
-    setListening(false);
-    listeningRef.current = false;
-  }, []);
-
-  const toggle = useCallback(() => {
-    if (listeningRef.current) stop();
-    else start();
-  }, [start, stop]);
-
-  return { listening, processing, result, partial, toggle } as const;
+  return { state, partial, error, start, stop } as const;
 }
 
-export function VoiceButton({
+/**
+ * A button that listens once. `tone` says whether this utterance is the graded
+ * one, because the learner should know that before pressing it.
+ */
+export function SpeakButton({
   expectedText,
   lang,
   label,
-  onCorrect,
-  onWrong,
+  hint,
+  graded,
   dataAttr,
+  onResult,
 }: {
   expectedText: string;
   lang: string;
   label: string;
-  onCorrect: () => void;
-  onWrong: () => void;
+  hint: string;
+  graded: boolean;
   dataAttr: string;
+  onResult: (result: SpokenResult) => void;
 }) {
-  const { listening, processing, result, partial, toggle } =
-    useVoiceRecognition({ expectedText, lang, onCorrect, onWrong });
+  const { state, partial, error, start, stop } = useListening({
+    expectedText,
+    lang,
+    onResult,
+  });
 
-  let btnClass =
-    'rounded-lg px-4 py-2 text-sm font-medium transition min-w-[140px]';
-  let display = label;
-
-  if (result?.correct) {
-    btnClass += ' bg-emerald-600 text-white';
-    display = '✅';
-  } else if (result && !result.correct) {
-    btnClass += ' bg-red-600 text-white';
-    display = '❌';
-  } else if (listening) {
-    btnClass += ' bg-red-600 text-white animate-pulse';
-    display = t.voiceRecording;
-  } else if (processing) {
-    btnClass += ' bg-slate-700 text-slate-300';
-    display = t.voiceProcessing;
-  } else {
-    btnClass += ' bg-slate-800 text-slate-300 hover:bg-slate-700';
-  }
-
-  const extraProps: Record<string, string> = {};
-  extraProps[dataAttr] = 'true';
+  const listening = state === 'listening';
+  const attrs: Record<string, string> = { [dataAttr]: 'true' };
 
   return (
     <div className="flex flex-col items-center gap-1">
       <button
-        {...extraProps}
-        onClick={toggle}
-        onContextMenu={(e) => e.preventDefault()}
-        className={btnClass}
+        {...attrs}
+        onClick={listening ? stop : start}
+        className={`w-full rounded-xl px-5 py-3 text-sm font-medium transition ${
+          listening
+            ? 'animate-pulse bg-red-600 text-white'
+            : graded
+              ? 'bg-indigo-600 text-white hover:bg-indigo-500'
+              : 'border border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500'
+        }`}
       >
-        {display}
+        <span className="block">{listening ? t.voiceRecording : label}</span>
+        <span className="mt-0.5 block text-xs font-normal opacity-70">
+          {listening ? t.voiceListeningMsg : hint}
+        </span>
       </button>
-      {listening && !result && (
-        <div className="text-xs text-slate-400">
-          {t.voiceListeningMsg}
-          {partial && (
-            <span>
-              {' '}
-              &mdash; {t.voiceHeard} <em>{partial}</em>
-            </span>
-          )}
-        </div>
+      {partial && (
+        <span data-voice-partial className="text-xs text-slate-400">
+          {t.voiceHeard} {partial}
+        </span>
       )}
-      {processing && !result && (
-        <div className="text-xs text-slate-500">{t.voiceProcessing}</div>
-      )}
-      {result && (
-        <div
-          className={`text-xs ${
-            result.correct ? 'text-emerald-400' : 'text-red-400'
-          }`}
-        >
-          {result.correct ? t.voiceCorrect : t.voiceWrong}
-          {' \u2014 '}
-          {t.voiceHeard} <strong>{result.transcript}</strong>
-        </div>
+      {error && (
+        <span data-voice-error className="text-xs text-red-400">
+          {error}
+        </span>
       )}
     </div>
   );

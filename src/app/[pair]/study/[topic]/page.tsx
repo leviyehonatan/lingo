@@ -10,7 +10,15 @@
  * machine in `src/lib/session.ts`.
  */
 
-import { useState, useMemo, useCallback, useEffect, useRef, Suspense } from 'react';
+import {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+  Suspense,
+} from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   fetchVocabulary,
@@ -26,10 +34,12 @@ import type { WordStatus } from '@/lib/progress';
 import {
   advance,
   attachSchedule,
+  attemptsFor,
   correctAnswer,
   currentCard,
   endSession,
   lastAnswer,
+  noteAttempt,
   recordAnswer,
   revealAnswer,
   sessionProgress,
@@ -47,8 +57,17 @@ import {
   type Activity,
   type Direction,
 } from '@/components/study/session-ui';
-import { QuizMode, WritingMode, VoiceButton, type Word } from '@/components/study/modes';
+import {
+  QuizMode,
+  WritingMode,
+  speechAvailable,
+  type SpokenResult,
+  type Word,
+} from '@/components/study/modes';
 import { he as t } from '@/i18n/translations';
+
+/** Whether the browser can hear is fixed for the life of the page. */
+const NEVER_CHANGES = () => () => {};
 
 /** How many cards one sitting runs, before the learner is told they are done. */
 const SESSION_SIZE = 20;
@@ -96,6 +115,15 @@ function StudyPageInner() {
   const [session, setSession] = useState<SessionState | null>(null);
 
   const now = useNow(30_000);
+
+  // Safari and Firefox ship no usable recognizer, so the spoken path has to be
+  // optional. It is a fact about the browser, not state: the server renders it
+  // as absent and the client fills it in on hydration.
+  const canListen = useSyncExternalStore(
+    NEVER_CHANGES,
+    speechAvailable,
+    () => false
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -237,6 +265,44 @@ function StudyPageInner() {
     [card, writeProgress]
   );
 
+  /**
+   * The graded utterance: the learner said the answer before seeing it. What
+   * the grader made of it becomes the grade, and the verdict shows it next to
+   * the transcript, so a bad hearing can be overturned on the spot.
+   */
+  const handleSpoken = useCallback(
+    (result: SpokenResult) => {
+      setSession((prev) =>
+        prev ? noteAttempt(prev, 'recall', result.heard, result.accepted, Date.now()) : prev
+      );
+      void grade(result.accepted ? 'known' : 'unknown');
+    },
+    [grade]
+  );
+
+  /** Saying the word already on screen. Practice only; it never grades. */
+  const handlePractice = useCallback((result: SpokenResult) => {
+    setSession((prev) =>
+      prev
+        ? noteAttempt(prev, 'pronunciation', result.heard, result.accepted, Date.now())
+        : prev
+    );
+  }, []);
+
+  /**
+   * Asking for the answer is allowed, and it is an admission: with a microphone
+   * available it records the card as not known, which the learner can overturn
+   * with the next click. Without one there is nothing to demonstrate with, so
+   * it falls back to revealing and self-grading.
+   */
+  const handleShowAnswer = useCallback(() => {
+    if (canListen) {
+      void grade('unknown');
+    } else {
+      setSession((prev) => (prev ? revealAnswer(prev) : prev));
+    }
+  }, [canListen, grade]);
+
   const speak = useCallback(() => {
     if (!card) return;
     const hungarian = promptIsHungarian(direction) ? card.prompt : card.answer;
@@ -364,35 +430,18 @@ function StudyPageInner() {
           card={card}
           stage={session.stage}
           answer={verdict}
+          heard={attemptsFor(session, card.id, 'recall').at(-1)}
           direction={direction}
-          onSpeak={speak}
-          onReveal={() => setSession((prev) => (prev ? revealAnswer(prev) : prev))}
+          canListen={canListen}
+          onSpeak={handleSpoken}
+          onSpeakPractice={handlePractice}
+          onSpeechUnavailable={speak}
+          onShowAnswer={handleShowAnswer}
           onGrade={(status) => void grade(status)}
           onOverride={(status) => void override(status)}
           onNext={() => setSession((prev) => (prev ? advance(prev) : prev))}
         />
       ) : null}
-
-      {card && session.stage !== 'prompt' && (
-        <div className="mx-auto flex max-w-xl justify-center gap-3 px-4 pb-10">
-          <VoiceButton
-            expectedText={promptIsHungarian(direction) ? card.answer : card.prompt}
-            lang="he-IL"
-            label={t.voiceHe}
-            onCorrect={() => {}}
-            onWrong={() => {}}
-            dataAttr="data-voice-he"
-          />
-          <VoiceButton
-            expectedText={promptIsHungarian(direction) ? card.prompt : card.answer}
-            lang="hu-HU"
-            label={t.voiceHu}
-            onCorrect={() => {}}
-            onWrong={() => {}}
-            dataAttr="data-voice-hu"
-          />
-        </div>
-      )}
 
     </div>
   );

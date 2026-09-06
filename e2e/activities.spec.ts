@@ -67,7 +67,10 @@ test('writing accepts the answer and records the word it asked about', async ({ 
   await page.locator('[data-writing-input]').fill(answer);
   await page.locator('[data-writing-check]').click();
 
-  await expect(page.locator('[data-verdict]')).toHaveText('כמעט');
+  await expect(page.locator('[data-verdict]')).toHaveAttribute(
+    'data-verdict-status',
+    'learning'
+  );
   await expect(page.locator('[data-card-answer]')).toBeVisible();
   await expect.poll(() => answeredWordId(page)).toBe(await idFor(page, asked));
 });
@@ -76,5 +79,8 @@ test('a wrong typed answer is graded as not known', async ({ page }) => {
   await openActivity(page, 'writing');
   await page.locator('[data-writing-input]').fill('זהלאהתשובה');
   await page.locator('[data-writing-check]').click();
-  await expect(page.locator('[data-verdict]')).toHaveText('לא ידעתם');
+  await expect(page.locator('[data-verdict]')).toHaveAttribute(
+    'data-verdict-status',
+    'unknown'
+  );
 });

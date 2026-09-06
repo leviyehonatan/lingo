@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   advance,
   attachSchedule,
+  attemptsFor,
   correctAnswer,
   currentCard,
   endSession,
   lastAnswer,
+  noteAttempt,
   recordAnswer,
   revealAnswer,
   sessionProgress,
@@ -126,6 +128,8 @@ describe('summarize', () => {
       learning: 0,
       unknown: 1,
       corrected: 1,
+      recalledAloud: 0,
+      pronounced: 0,
       soonestDelay: 60_000,
     });
   });
@@ -137,6 +141,8 @@ describe('summarize', () => {
       learning: 0,
       unknown: 0,
       corrected: 0,
+      recalledAloud: 0,
+      pronounced: 0,
       soonestDelay: null,
     });
   });
@@ -182,5 +188,47 @@ describe('attachSchedule', () => {
     state = correctAnswer(state, 'known', null, NOW);
     state = attachSchedule(state, 'a', NOW + DAY);
     expect(lastAnswer(state)?.corrected).toBe(true);
+  });
+});
+
+describe('spoken attempts', () => {
+  it('keeps what was heard, accepted or not', () => {
+    let state = startSession(cards);
+    state = noteAttempt(state, 'pronunciation', 'igen', true, NOW);
+    state = noteAttempt(state, 'recall', 'לא', false, NOW + 1000);
+
+    expect(attemptsFor(state, 'a')).toHaveLength(2);
+    expect(attemptsFor(state, 'a', 'recall')).toEqual([
+      { cardId: 'a', kind: 'recall', heard: 'לא', accepted: false, at: NOW + 1000 },
+    ]);
+  });
+
+  it('attaches attempts to the card being asked', () => {
+    let state = noteAttempt(startSession(cards), 'recall', 'כן', true, NOW);
+    state = advance(recordAnswer(state, 'known', NOW + DAY, NOW));
+    state = noteAttempt(state, 'recall', 'לא', true, NOW);
+
+    expect(attemptsFor(state, 'a', 'recall')).toHaveLength(1);
+    expect(attemptsFor(state, 'b', 'recall')).toHaveLength(1);
+  });
+
+  it('ignores anything said after the session is over', () => {
+    const done = startSession([]);
+    expect(noteAttempt(done, 'recall', 'כן', true, NOW)).toBe(done);
+  });
+
+  it('counts cards, not utterances, and only counts accepted recalls', () => {
+    let state = startSession(cards);
+    state = noteAttempt(state, 'recall', 'לא', false, NOW);
+    state = noteAttempt(state, 'recall', 'כן', true, NOW);
+    state = noteAttempt(state, 'pronunciation', 'igen', false, NOW);
+    state = advance(recordAnswer(state, 'known', NOW + DAY, NOW));
+    state = noteAttempt(state, 'recall', 'לא', false, NOW);
+    state = recordAnswer(state, 'unknown', NOW + 60_000, NOW);
+
+    const summary = summarize(state);
+    expect(summary.recalledAloud).toBe(1);
+    expect(summary.pronounced).toBe(1);
+    expect(summary.total).toBe(2);
   });
 });

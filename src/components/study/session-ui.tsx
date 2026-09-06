@@ -12,7 +12,14 @@ import { useState } from 'react';
 import type { WordStatus } from '@/lib/progress';
 import type { FilterMode } from '@/lib/study';
 import { humanizeInterval } from '@/lib/interval';
-import type { SessionAnswer, SessionCard, SessionStage, SessionSummary } from '@/lib/session';
+import type {
+  SessionAnswer,
+  SessionAttempt,
+  SessionCard,
+  SessionStage,
+  SessionSummary,
+} from '@/lib/session';
+import { SpeakButton, type SpokenResult } from '@/components/study/modes';
 import { formatDelay, he as t } from '@/i18n/translations';
 
 export type Direction = 'forward' | 'reverse';
@@ -278,9 +285,13 @@ export function GuidedCard({
   card,
   stage,
   answer,
+  heard,
   direction,
+  canListen,
   onSpeak,
-  onReveal,
+  onSpeakPractice,
+  onSpeechUnavailable,
+  onShowAnswer,
   onGrade,
   onOverride,
   onNext,
@@ -288,16 +299,27 @@ export function GuidedCard({
   card: SessionCard;
   stage: SessionStage;
   answer: SessionAnswer | undefined;
+  /** The last thing the learner said about this card, if anything. */
+  heard: SessionAttempt | undefined;
   direction: Direction;
-  onSpeak: () => void;
-  onReveal: () => void;
+  canListen: boolean;
+  onSpeak: (result: SpokenResult) => void;
+  onSpeakPractice: (result: SpokenResult) => void;
+  onSpeechUnavailable: () => void;
+  onShowAnswer: () => void;
   onGrade: (status: WordStatus) => void;
   onOverride: (status: WordStatus) => void;
   onNext: () => void;
 }) {
   const promptHu = promptIsHungarian(direction);
   const task =
-    stage === 'prompt' ? t.taskRecall : stage === 'reveal' ? t.taskGrade : t.taskVerdict;
+    stage === 'prompt'
+      ? canListen
+        ? t.taskSpeak
+        : t.taskRecall
+      : stage === 'reveal'
+        ? t.taskGrade
+        : t.taskVerdict;
 
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-6">
@@ -318,7 +340,7 @@ export function GuidedCard({
         </span>
         <button
           data-speak
-          onClick={onSpeak}
+          onClick={onSpeechUnavailable}
           className="mt-3 rounded-full p-2 text-lg transition hover:bg-slate-700"
           title={t.keySpeak}
         >
@@ -340,13 +362,54 @@ export function GuidedCard({
       </div>
 
       {stage === 'prompt' && (
-        <button
-          data-session-reveal
-          onClick={onReveal}
-          className="mt-6 w-full rounded-xl bg-indigo-600 px-5 py-3 text-base font-semibold text-white transition hover:bg-indigo-500"
-        >
-          {t.revealAnswer}
-        </button>
+        <div className="mt-6 grid gap-3">
+          {canListen ? (
+            <>
+              {/* The graded utterance: the answer, said before it is shown. */}
+              <SpeakButton
+                expectedText={card.answer}
+                lang={promptHu ? 'he-IL' : 'hu-HU'}
+                label={t.speakAnswer}
+                hint={t.speakAnswerHint}
+                graded
+                dataAttr="data-speak-answer"
+                onResult={onSpeak}
+              />
+              {/* Saying the word already on screen practises the mouth only, and
+                  only makes sense for the language being learned. */}
+              {promptHu && (
+                <SpeakButton
+                  expectedText={card.prompt}
+                  lang="hu-HU"
+                  label={t.speakPractice}
+                  hint={t.speakPracticeHint}
+                  graded={false}
+                  dataAttr="data-speak-practice"
+                  onResult={onSpeakPractice}
+                />
+              )}
+            </>
+          ) : (
+            <p data-no-speech className="text-center text-xs text-slate-500">
+              {t.noSpeech}
+            </p>
+          )}
+
+          <button
+            data-session-reveal
+            onClick={onShowAnswer}
+            className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 transition hover:border-slate-500"
+          >
+            <span className="block font-medium">
+              {canListen ? t.showAnswerCost : t.revealAnswer}
+            </span>
+            {canListen && (
+              <span className="mt-0.5 block text-xs opacity-70">
+                {t.showAnswerCostHint}
+              </span>
+            )}
+          </button>
+        </div>
       )}
 
       {stage === 'reveal' && (
@@ -366,7 +429,12 @@ export function GuidedCard({
       )}
 
       {stage === 'feedback' && answer && (
-        <Verdict answer={answer} onOverride={onOverride} onNext={onNext} />
+        <Verdict
+          answer={answer}
+          heard={heard}
+          onOverride={onOverride}
+          onNext={onNext}
+        />
       )}
     </div>
   );
@@ -374,10 +442,12 @@ export function GuidedCard({
 
 function Verdict({
   answer,
+  heard,
   onOverride,
   onNext,
 }: {
   answer: SessionAnswer;
+  heard: SessionAttempt | undefined;
   onOverride: (status: WordStatus) => void;
   onNext: () => void;
 }) {
@@ -386,8 +456,17 @@ function Verdict({
 
   return (
     <div className="mt-6 rounded-xl border border-slate-700 bg-slate-800/60 p-4">
-      <p data-verdict className={`text-center text-sm font-medium ${verdict.tone}`}>
-        {verdict.label}
+      {heard && (
+        <p data-verdict-heard className="mb-2 text-center text-xs text-slate-400">
+          {heard.heard ? t.verdictHeard(heard.heard) : t.verdictHeardNothing}
+        </p>
+      )}
+      <p
+        data-verdict
+        data-verdict-status={answer.status}
+        className={`text-center text-sm font-medium ${verdict.tone}`}
+      >
+        <span data-verdict-label>{verdict.label}</span>
         {answer.nextReview !== null && (
           <>
             {' · '}
@@ -454,6 +533,10 @@ export function SessionSummaryScreen({
             <Tally tone="text-amber-300" label={t.learning} value={summary.learning} attr="learning" />
             <Tally tone="text-red-300" label={t.dontKnow} value={summary.unknown} attr="unknown" />
           </dl>
+          <p data-summary-spoken className="mt-4 text-center text-xs text-slate-500">
+            {t.summarySpoken(summary.recalledAloud)}
+            {summary.pronounced > 0 && ` · ${t.summaryPronounced(summary.pronounced)}`}
+          </p>
           {summary.soonestDelay !== null && (
             <p data-summary-next className="mt-6 text-sm text-slate-400">
               {t.summaryNext(formatDelay(t, humanizeInterval(summary.soonestDelay)))}

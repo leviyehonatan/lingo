@@ -44,6 +44,27 @@ machine with the languages parameterized, never two machines.
 - **Feedback is immediate and binary.** That per-trial verdict is the mechanism
   the whole approach rests on.
 
+## What the learner can do, and what it costs
+
+Speaking now drives the session rather than sitting beside it. Every action on a
+card says its consequence before it is taken.
+
+| Action | Listens in | Effect |
+| --- | --- | --- |
+| Say the answer | the answer's language | The graded recall. What the grader hears becomes the grade. |
+| Practise the sound | Hungarian | Nothing. Recorded as an attempt, never touches the schedule. Offered only when the Hungarian is the side on screen, since saying a word already shown is mouth practice, not recall. |
+| Show the answer | — | An admission. Records the card as not known, overturnable in the next click. |
+| Next | — | Only exists once a verdict does. |
+
+That third row is what makes the demonstration active. While revealing was free
+and ungraded, nothing obliged the learner to try.
+
+The three grade buttons did not disappear. They are the manual path for a
+browser that cannot hear, and the correction row on every verdict.
+
+Silence is an answer: when the recognizer closes with nothing heard, the card is
+graded as not known and the verdict says so, rather than the session stalling.
+
 ## Two skills, graded differently
 
 Reading aloud a word that is on screen tests pronunciation. Recalling its
@@ -80,15 +101,9 @@ It replaced a check that accepted a match when either string contained the
 other, which let a single spoken syllable score a word correct, and which ran on
 interim results so it could fire before the learner finished speaking.
 
-The override that this needed now exists: the verdict panel offers the other two
-grades, and taking one rewrites the review rather than adding a second, so a
-correction never advances the interval ladder. The recognizer is not the last
-word on a failure.
-
-What voice mode still needs is to drive the session rather than sit beside it.
-The stages are in place and the machine is pure, so listening becomes a matter of
-starting the recognizer when a stage begins and feeding its verdict in as an
-event.
+The override exists: the verdict panel offers the other two grades, and taking
+one rewrites the review rather than adding a second, so a correction never
+advances the interval ladder. The recognizer is not the last word on a failure.
 
 ## Platform reality
 
