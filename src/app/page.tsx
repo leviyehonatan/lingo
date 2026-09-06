@@ -17,7 +17,11 @@ export default async function Home() {
   try {
     const db = await prisma.languagePair.findMany();
     pairs = db.map((p) => ({ id: p.id, sourceLang: p.sourceLang, targetLang: p.targetLang, sourceName: p.sourceName, targetName: p.targetName }));
-  } catch {}
+  } catch (error) {
+    // Rendering an empty list here has been mistaken for an unseeded database
+    // when the real trouble was the connection; at least say so in the log.
+    console.error('Home: could not read language pairs', error);
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col items-center justify-center px-4">
