@@ -1,0 +1,43 @@
+# Bring the production database up to date, by hand.
+#
+# The deploy workflow builds and restarts the app but never touches the
+# schema, and the `migrate` service in deploy/docker-compose.yml only runs on
+# demand. This is the button for it: run it after merging a PR that adds a
+# migration, or once on a fresh database with `seed` ticked to load the
+# vocabulary. Both steps are idempotent, so running it again is harmless.
+name: Init DB
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: 'Also load the vocabulary (upsert-only, safe to repeat)'
+        type: boolean
+        default: false
+
+jobs:
+  init:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Migrate (and seed) on server
+        uses: appleboy/ssh-action@v1
+        env:
+          SEED: ${{ inputs.seed }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: SEED
+          script: |
+            set -e
+            cd /srv/apps/lingo/src
+            git pull --ff-only
+            cd /srv/apps/lingo
+            # The tools image is the app's builder stage: source, node_modules
+            # and a generated Prisma client, on the database's network.
+            docker compose build migrate
+            docker compose run --rm migrate npx prisma migrate deploy
+            if [ "$SEED" = "true" ]; then
+              docker compose run --rm migrate npm run seed
+            fi
+            docker compose run --rm migrate npx prisma migrate status
