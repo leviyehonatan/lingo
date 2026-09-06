@@ -10,7 +10,7 @@ import {
   resetProgress,
 } from '@/lib/api';
 import type { LevelData, ProgressData } from '@/lib/api';
-import { computeStats, filterWordIds, shuffle } from '@/lib/study';
+import { computeStats, filterWordIds, sameIdSet, shuffle } from '@/lib/study';
 import type { FilterMode } from '@/lib/study';
 import type { WordStatus } from '@/lib/progress';
 
@@ -137,12 +137,25 @@ function StudyPageInner() {
     [words, filteredWordIds]
   );
 
+  // The deck is reshuffled only when the set of word ids in it actually
+  // changes (topic, filter, mode, a word leaving the filter). `filteredWords`
+  // is a fresh array on every progress update and on every tick of `now`, so
+  // keying the shuffle on its identity would reorder the deck under the user
+  // mid-session.
+  const deckIdsRef = useRef<string[] | null>(null);
+
   useEffect(() => {
+    const previous = deckIdsRef.current;
+    if (previous && sameIdSet(previous, filteredWordIds)) return;
+    deckIdsRef.current = filteredWordIds;
     // shuffle is impure (Math.random), so we defer the setState
     queueMicrotask(() => {
       setShuffled(shuffle(filteredWords));
+      // Keep the reader's place when the deck still reaches that far;
+      // a shrunken deck would otherwise leave the index past its end.
+      setCurrentIndex((i) => (i < filteredWords.length ? i : 0));
     });
-  }, [filteredWords]);
+  }, [filteredWordIds, filteredWords]);
 
   const stats = useMemo(
     () => computeStats(wordIds, progress.byWord, now),

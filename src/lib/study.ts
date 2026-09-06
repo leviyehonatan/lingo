@@ -85,3 +85,21 @@ export function shuffle<T>(items: readonly T[], random: () => number = Math.rand
   }
   return out;
 }
+
+/**
+ * Do two id lists describe the same deck? Used to decide whether a change to
+ * the filtered word list is a real deck change (topic, filter, a word leaving
+ * the filter) or only a new array holding the same words, which happens on
+ * every progress update and every clock tick. Order is ignored: the deck is
+ * shuffled anyway, so a reordering of the same ids is not a new deck.
+ */
+export function sameIdSet(a: readonly string[], b: readonly string[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  const seen = new Set(a);
+  if (seen.size !== a.length) {
+    // Duplicate ids would make the set comparison lossy; fall back to order.
+    return a.every((id, i) => id === b[i]);
+  }
+  return b.every((id) => seen.has(id));
+}
