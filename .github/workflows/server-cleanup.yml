@@ -1,0 +1,31 @@
+# Free disk on the server, by hand.
+#
+# Lingo builds its image on the server, and every build leaves cache behind.
+# The deploy only pruned images, so on 2026-09-06 the disk filled up, deploys
+# failed with "no space left on device" and Postgres stopped answering. This
+# reclaims what Docker is holding without touching anything that runs: build
+# cache, dangling and unused images, stopped containers, old journal. Volumes
+# are never pruned; the database lives in one.
+name: Server cleanup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prune Docker build cache and unused images
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            echo "== before"; df -h / ; docker system df
+            docker builder prune -af
+            docker image prune -af
+            docker container prune -f
+            journalctl --vacuum-size=200M 2>/dev/null || true
+            echo "== after"; df -h / ; docker system df

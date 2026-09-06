@@ -112,6 +112,9 @@ jobs:
             cd /srv/apps/lingo/src
             git pull --ff-only
             cd /srv/apps/lingo
+            # Builds happen here and their cache is never used twice in a
+            # useful way; left alone it filled the disk (2026-09-06).
+            docker builder prune -f --keep-storage 2GB
             docker compose build app
             docker compose up -d --wait app
             docker image prune -f
