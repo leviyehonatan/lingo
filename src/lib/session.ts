@@ -11,6 +11,7 @@
  */
 
 import type { WordStatus } from './progress';
+import type { CardMode } from './plan';
 
 export type SessionStage = 'prompt' | 'reveal' | 'feedback' | 'done';
 
@@ -19,6 +20,11 @@ export interface SessionCard {
   id: string;
   prompt: string;
   answer: string;
+  /**
+   * `teach` for a word the learner has never met: it is shown with its answer
+   * and said aloud, never asked for. `review` is the graded recall.
+   */
+  mode: CardMode;
 }
 
 export interface SessionAnswer {
@@ -150,6 +156,23 @@ export function advance(state: SessionState): SessionState {
   return { ...state, index: next, stage: 'prompt' };
 }
 
+/**
+ * Put a word just met back at the end of the sitting, as a question this time.
+ *
+ * Meeting a word and never being asked for it teaches nothing: the test is what
+ * builds the memory. So a taught card returns before the learner leaves, which
+ * is also the shortest interval the schedule could offer and the one the method
+ * asks for.
+ */
+export function requeueForReview(state: SessionState, cardId: string): SessionState {
+  const card = state.cards.find((c) => c.id === cardId);
+  if (!card || state.stage === 'done') return state;
+  // Only the introduction is requeued, and only once.
+  const alreadyQueued = state.cards.filter((c) => c.id === cardId).length > 1;
+  if (card.mode !== 'teach' || alreadyQueued) return state;
+  return { ...state, cards: [...state.cards, { ...card, mode: 'review' }] };
+}
+
 /** Stop early. Whatever was answered still counts. */
 export function endSession(state: SessionState): SessionState {
   return { ...state, stage: 'done' };
@@ -207,6 +230,8 @@ export function sessionProgress(state: SessionState): SessionProgress {
 
 export interface SessionSummary {
   total: number;
+  /** Words met for the first time in this sitting. */
+  taught: number;
   known: number;
   learning: number;
   unknown: number;
@@ -229,8 +254,12 @@ export interface SessionSummary {
  * the verdict was overturned, still counts once and counts as its final grade.
  */
 export function summarize(state: SessionState): SessionSummary {
+  const taught = new Set(
+    state.cards.filter((card) => card.mode === 'teach').map((card) => card.id)
+  );
   const summary: SessionSummary = {
     total: state.answers.length,
+    taught: state.answers.filter((answer) => taught.has(answer.cardId)).length,
     known: 0,
     learning: 0,
     unknown: 0,

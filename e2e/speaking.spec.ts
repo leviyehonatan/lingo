@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
-import { STUDY_URL } from './fixtures';
+import { STUDY_URL, TOPIC_ID } from './fixtures';
 import { fakeSpeech, say, saySilence } from './speech';
+import { seedWord, words } from './session';
 
 /**
  * Speaking is how a learner demonstrates they know a word, so it decides the
@@ -9,8 +10,16 @@ import { fakeSpeech, say, saySilence } from './speech';
  *
  * `window.__say(transcript)` speaks; `window.__silence()` hears nothing.
  */
+/**
+ * A session only asks about words the learner has met, so seed one and drill
+ * that group. Teaching a new word is covered in learning-path.spec.ts.
+ */
 async function startSession(page: Page) {
+  const [word] = await words(page, TOPIC_ID);
+  await seedWord(page, word.id, 'known');
   await page.goto(STUDY_URL);
+  await page.locator('[data-options-toggle]').click();
+  await page.locator('[data-deck="known"]').click();
   await page.locator('[data-session-start]').click();
   await expect(page.locator('[data-flashcard]')).toBeVisible();
 }
@@ -30,7 +39,9 @@ async function expectedAnswer(page: Page): Promise<string> {
 
 async function progressRows(page: Page) {
   const res = await page.request.get('/api/progress');
-  return ((await res.json()) as { progress: { status: string }[] }).progress;
+  return ((await res.json()) as {
+    progress: { status: string; review_count: number }[];
+  }).progress;
 }
 
 test.beforeEach(async ({ page }) => {
@@ -40,12 +51,13 @@ test.beforeEach(async ({ page }) => {
 
 test('the card asks to be answered aloud before it shows anything', async ({ page }) => {
   await startSession(page);
+  await expect(page.locator('[data-teach-badge]')).toHaveCount(0);
   await expect(page.locator('[data-session-task]')).toHaveText('אמרו את התשובה בקול');
   await expect(page.locator('[data-speak-answer]')).toBeVisible();
   await expect(page.locator('[data-speak-practice]')).toBeVisible();
   // Nothing is graded and nothing is revealed until the learner acts.
   await expect(page.locator('[data-card-answer]')).toHaveCount(0);
-  expect(await progressRows(page)).toHaveLength(0);
+  expect(await progressRows(page)).toHaveLength(1);
 });
 
 test('saying the answer marks it known and shows what was heard', async ({ page }) => {
@@ -60,7 +72,7 @@ test('saying the answer marks it known and shows what was heard', async ({ page 
     'known'
   );
   await expect(page.locator('[data-verdict-heard]')).toContainText(answer);
-  await expect(page.locator('[data-verdict-interval]')).toHaveText('חוזרת בעוד יום');
+  await expect(page.locator('[data-verdict-interval]')).toHaveText('חוזרת בעוד 3 ימים');
   await expect.poll(async () => (await progressRows(page))[0]?.status).toBe('known');
 });
 
@@ -104,7 +116,7 @@ test('pronunciation practice never touches the schedule', async ({ page }) => {
   await expect(page.locator('[data-session-task]')).toHaveText('אמרו את התשובה בקול');
   await expect(page.locator('[data-verdict]')).toHaveCount(0);
   await page.waitForTimeout(300);
-  expect(await progressRows(page)).toHaveLength(0);
+  expect((await progressRows(page))[0].review_count).toBe(1);
 });
 
 test('asking for the answer admits you did not know it', async ({ page }) => {

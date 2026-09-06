@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { STUDY_URL } from './fixtures';
+import { STUDY_URL, TOPIC_ID } from './fixtures';
+import { seedWord, words } from './session';
 
 /**
  * Quiz and writing ask the question their own way, then hand over to the same
@@ -8,29 +9,37 @@ import { STUDY_URL } from './fixtures';
  * answered, so these check the answer lands on the word that was asked.
  */
 
+/**
+ * Quiz and writing only ever ask about words the learner has met, so each case
+ * seeds one and drills that group.
+ */
 async function openActivity(page: Page, activity: 'quiz' | 'writing') {
+  const seeded = (await words(page, TOPIC_ID)).slice(0, 4);
+  for (const word of seeded) await seedWord(page, word.id, 'known');
+
   await page.goto(STUDY_URL);
+  await page.locator('[data-options-toggle]').click();
   await page.locator(`[data-activity="${activity}"]`).click();
+  await page.locator('[data-deck="known"]').click();
   await page.locator('[data-session-start]').click();
   await expect(page.locator('[data-card-prompt]')).toBeVisible();
 }
 
-async function answeredWordId(page: Page): Promise<string> {
+/**
+ * The word this answer landed on. Every word in the deck was seeded with one
+ * review, so the one just answered is the one with two.
+ */
+async function reviewedTwice(page: Page): Promise<string[]> {
   const res = await page.request.get('/api/progress');
-  const body = (await res.json()) as { progress: { word_id: string }[] };
-  return body.progress[0]?.word_id ?? '';
+  const body = (await res.json()) as {
+    progress: { word_id: string; review_count: number }[];
+  };
+  return body.progress.filter((row) => row.review_count === 2).map((row) => row.word_id);
 }
 
 async function idFor(page: Page, hungarian: string): Promise<string> {
-  const res = await page.request.get('/api/vocabulary?pair=hu-he');
-  const levels = (await res.json()) as {
-    topics: { words: { id: string; hungarian: string }[] }[];
-  }[];
-  const word = levels
-    .flatMap((l) => l.topics)
-    .flatMap((t) => t.words)
-    .find((w) => w.hungarian === hungarian);
-  return word?.id ?? '';
+  const all = await words(page, TOPIC_ID);
+  return all.find((w) => w.hungarian === hungarian)?.id ?? '';
 }
 
 test.beforeEach(async ({ page }) => {
@@ -47,7 +56,7 @@ test('quiz records the word it asked about', async ({ page }) => {
 
   // Whatever was picked, the verdict and the write are about the asked word.
   await expect(page.locator('[data-verdict]')).toBeVisible();
-  await expect.poll(() => answeredWordId(page)).toBe(await idFor(page, asked));
+  await expect.poll(() => reviewedTwice(page)).toEqual([await idFor(page, asked)]);
 });
 
 test('writing accepts the answer and records the word it asked about', async ({ page }) => {
@@ -55,14 +64,7 @@ test('writing accepts the answer and records the word it asked about', async ({ 
   const asked = (await page.locator('[data-card-prompt]').innerText()).trim();
 
   // Answer it correctly by reading the expected answer off the vocabulary API.
-  const res = await page.request.get('/api/vocabulary?pair=hu-he');
-  const levels = (await res.json()) as {
-    topics: { words: { hungarian: string; hebrew: string }[] }[];
-  }[];
-  const answer = levels
-    .flatMap((l) => l.topics)
-    .flatMap((t) => t.words)
-    .find((w) => w.hungarian === asked)!.hebrew;
+  const answer = (await words(page, TOPIC_ID)).find((w) => w.hungarian === asked)!.hebrew;
 
   await page.locator('[data-writing-input]').fill(answer);
   await page.locator('[data-writing-check]').click();
@@ -72,7 +74,7 @@ test('writing accepts the answer and records the word it asked about', async ({ 
     'learning'
   );
   await expect(page.locator('[data-card-answer]')).toBeVisible();
-  await expect.poll(() => answeredWordId(page)).toBe(await idFor(page, asked));
+  await expect.poll(() => reviewedTwice(page)).toEqual([await idFor(page, asked)]);
 });
 
 test('a wrong typed answer is graded as not known', async ({ page }) => {

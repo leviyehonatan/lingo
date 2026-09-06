@@ -12,6 +12,7 @@ import { useState } from 'react';
 import type { WordStatus } from '@/lib/progress';
 import type { FilterMode } from '@/lib/study';
 import { humanizeInterval } from '@/lib/interval';
+import type { SessionPlan } from '@/lib/plan';
 import type {
   SessionAnswer,
   SessionAttempt,
@@ -66,6 +67,7 @@ function dirAttr(isHungarian: boolean): 'ltr' | 'rtl' {
 
 export function SessionSetup({
   topicName,
+  plan,
   deckCounts,
   direction,
   onDirectionChange,
@@ -80,22 +82,30 @@ export function SessionSetup({
   onReset,
 }: {
   topicName: string;
+  /** What the recommended sitting holds, before any override. */
+  plan: SessionPlan;
   deckCounts: Record<FilterMode, number>;
   direction: Direction;
   onDirectionChange: (d: Direction) => void;
-  deck: FilterMode;
-  onDeckChange: (f: FilterMode) => void;
+  /** Null while the learner is on the recommended path. */
+  deck: FilterMode | null;
+  onDeckChange: (f: FilterMode | null) => void;
   activity: Activity;
   onActivityChange: (a: Activity) => void;
   todayCount: number;
   dailyGoal: number;
-  /** Cap on one sitting, so the button promises what the session delivers. */
   sessionSize: number;
   onStart: () => void;
   onReset: () => void;
 }) {
+  const [showOptions, setShowOptions] = useState(false);
   const [confirmingReset, setConfirmingReset] = useState(false);
-  const available = Math.min(deckCounts[deck], sessionSize);
+
+  const planned = plan.cards.length;
+  const overridden = deck !== null;
+  const available = overridden
+    ? Math.min(deckCounts[deck], sessionSize)
+    : planned;
 
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-8" data-session-setup>
@@ -105,62 +115,116 @@ export function SessionSetup({
         {t.sessionToday(todayCount, dailyGoal)}
       </p>
 
-      <Fieldset legend={t.sessionDirection}>
-        <div className="grid gap-2">
-          {(['forward', 'reverse'] as const).map((d) => (
-            <Choice
-              key={d}
-              selected={direction === d}
-              onClick={() => onDirectionChange(d)}
-              data-direction={d}
-              label={d === 'forward' ? t.directionForward : t.directionReverse}
-            />
-          ))}
-        </div>
-      </Fieldset>
+      {/* One recommended sitting, described in a line. The learner should not
+          have to assemble their own out of filters. */}
+      <div className="mt-8 rounded-2xl border border-slate-700 bg-slate-800/60 p-5">
+        {available === 0 ? (
+          <>
+            <p data-plan-empty className="text-sm text-slate-300">
+              {t.planNothing}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {t.planNothingHint(plan.waiting)}
+            </p>
+            <button
+              data-plan-ahead
+              onClick={() => {
+                onDeckChange('all');
+                setShowOptions(true);
+              }}
+              className="mt-4 w-full rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 transition hover:border-slate-500"
+            >
+              {t.planAheadCta}
+            </button>
+          </>
+        ) : (
+          <>
+            <p data-plan-headline className="text-lg font-semibold">
+              {overridden
+                ? `${DECK_LABELS[deck]} · ${t.deckCount(available)}`
+                : t.planHeadline(
+                    plan.cards.filter((c) => c.mode === 'review').length,
+                    plan.cards.filter((c) => c.mode === 'teach').length
+                  )}
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              {overridden ? DECK_LABELS[deck] : t.planExplain}
+            </p>
+            <p className="mt-3 text-xs text-slate-500">
+              {direction === 'forward' ? t.directionForward : t.directionReverse}
+            </p>
+            <button
+              data-session-start
+              onClick={onStart}
+              className="mt-4 w-full rounded-xl bg-indigo-600 px-5 py-3 text-base font-semibold text-white transition hover:bg-indigo-500"
+            >
+              {t.sessionStart(available)}
+            </button>
+          </>
+        )}
+      </div>
 
-      <Fieldset legend={t.sessionDeck}>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {DECKS.map((f) => (
-            <Choice
-              key={f}
-              selected={deck === f}
-              onClick={() => onDeckChange(f)}
-              data-deck={f}
-              label={DECK_LABELS[f]}
-              hint={t.deckCount(deckCounts[f])}
-            />
-          ))}
-        </div>
-      </Fieldset>
+      <button
+        data-options-toggle
+        onClick={() => setShowOptions((open) => !open)}
+        className="mt-6 text-xs text-slate-500 transition hover:text-slate-300"
+      >
+        {showOptions ? t.optionsClose : t.optionsOpen}
+      </button>
 
-      <Fieldset legend={t.sessionActivity}>
-        <div className="grid gap-2">
-          {ACTIVITIES.map((a) => (
-            <Choice
-              key={a.id}
-              selected={activity === a.id}
-              onClick={() => onActivityChange(a.id)}
-              data-activity={a.id}
-              label={a.label}
-              hint={a.hint}
-            />
-          ))}
-        </div>
-      </Fieldset>
+      {showOptions && (
+        <div data-session-options>
+          <Fieldset legend={t.sessionDirection}>
+            <div className="grid gap-2">
+              {(['forward', 'reverse'] as const).map((d) => (
+                <Choice
+                  key={d}
+                  selected={direction === d}
+                  onClick={() => onDirectionChange(d)}
+                  data-direction={d}
+                  label={d === 'forward' ? t.directionForward : t.directionReverse}
+                />
+              ))}
+            </div>
+          </Fieldset>
 
-      {available === 0 ? (
-        <p className="mt-8 rounded-xl border border-slate-700 bg-slate-800/60 p-4 text-center text-sm text-slate-400">
-          {t.sessionEmpty}
-        </p>
-      ) : (
-        <button
-          data-session-start
-          onClick={onStart}
-          className="mt-8 w-full rounded-xl bg-indigo-600 px-5 py-3 text-base font-semibold text-white transition hover:bg-indigo-500"
-        >
-          {t.sessionStart(available)}
-        </button>
+          <Fieldset legend={t.sessionDeck}>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Choice
+                selected={!overridden}
+                onClick={() => onDeckChange(null)}
+                data-deck="plan"
+                label={t.planExplain}
+                hint={t.deckCount(planned)}
+              />
+              {DECKS.map((f) => (
+                <Choice
+                  key={f}
+                  selected={deck === f}
+                  onClick={() => onDeckChange(f)}
+                  data-deck={f}
+                  label={DECK_LABELS[f]}
+                  hint={t.deckCount(deckCounts[f])}
+                />
+              ))}
+            </div>
+          </Fieldset>
+
+          <Fieldset legend={t.sessionActivity}>
+            <div className="grid gap-2">
+              {ACTIVITIES.map((a) => (
+                <Choice
+                  key={a.id}
+                  selected={activity === a.id}
+                  onClick={() => onActivityChange(a.id)}
+                  data-activity={a.id}
+                  label={a.label}
+                  hint={a.hint}
+                />
+              ))}
+            </div>
+          </Fieldset>
+        </div>
       )}
 
       <div className="mt-10 border-t border-slate-800 pt-4">
@@ -292,6 +356,7 @@ export function GuidedCard({
   onSpeakPractice,
   onSpeechUnavailable,
   onShowAnswer,
+  onTaught,
   onGrade,
   onOverride,
   onNext,
@@ -307,13 +372,17 @@ export function GuidedCard({
   onSpeakPractice: (result: SpokenResult) => void;
   onSpeechUnavailable: () => void;
   onShowAnswer: () => void;
+  /** A new word has been met; it enters the schedule rather than being graded. */
+  onTaught: () => void;
   onGrade: (status: WordStatus) => void;
   onOverride: (status: WordStatus) => void;
   onNext: () => void;
 }) {
   const promptHu = promptIsHungarian(direction);
-  const task =
-    stage === 'prompt'
+  const teaching = card.mode === 'teach' && stage === 'prompt';
+  const task = teaching
+    ? t.teachTask
+    : stage === 'prompt'
       ? canListen
         ? t.taskSpeak
         : t.taskRecall
@@ -323,6 +392,14 @@ export function GuidedCard({
 
   return (
     <div className="mx-auto w-full max-w-xl px-4 py-6">
+      {teaching && (
+        <p
+          data-teach-badge
+          className="mb-2 text-center text-xs font-medium uppercase tracking-wide text-indigo-300"
+        >
+          {t.teachTitle}
+        </p>
+      )}
       <p data-session-task className="mb-5 text-center text-sm text-slate-400">
         {task}
       </p>
@@ -347,7 +424,7 @@ export function GuidedCard({
           🔊
         </button>
 
-        {stage !== 'prompt' && (
+        {(teaching || stage !== 'prompt') && (
           <>
             <div className="mx-auto my-5 h-px w-16 bg-slate-700" />
             <span
@@ -361,7 +438,30 @@ export function GuidedCard({
         )}
       </div>
 
-      {stage === 'prompt' && (
+      {teaching && (
+        <div className="mt-6 grid gap-3">
+          {canListen && (
+            <SpeakButton
+              expectedText={promptHu ? card.prompt : card.answer}
+              lang="hu-HU"
+              label={t.speakPractice}
+              hint={t.speakPracticeHint}
+              graded={false}
+              dataAttr="data-speak-practice"
+              onResult={onSpeakPractice}
+            />
+          )}
+          <button
+            data-teach-got
+            onClick={onTaught}
+            className="rounded-xl bg-indigo-600 px-5 py-3 text-base font-semibold text-white transition hover:bg-indigo-500"
+          >
+            {t.teachGot}
+          </button>
+        </div>
+      )}
+
+      {!teaching && stage === 'prompt' && (
         <div className="mt-6 grid gap-3">
           {canListen ? (
             <>

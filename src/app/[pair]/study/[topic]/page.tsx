@@ -29,6 +29,7 @@ import {
 } from '@/lib/api';
 import type { LevelData, ProgressData } from '@/lib/api';
 import { computeStats, filterWordIds, shuffle } from '@/lib/study';
+import { modeFor, planSession } from '@/lib/plan';
 import type { FilterMode } from '@/lib/study';
 import type { WordStatus } from '@/lib/progress';
 import {
@@ -41,6 +42,7 @@ import {
   lastAnswer,
   noteAttempt,
   recordAnswer,
+  requeueForReview,
   revealAnswer,
   sessionProgress,
   startSession,
@@ -71,6 +73,13 @@ const NEVER_CHANGES = () => () => {};
 
 /** How many cards one sitting runs, before the learner is told they are done. */
 const SESSION_SIZE = 20;
+
+/**
+ * How many unmet words one sitting introduces. The method warns that new cards
+ * are what generate tomorrow's reviews, so this is the tap that has to stay
+ * half closed.
+ */
+const NEW_PER_SESSION = 5;
 
 /**
  * A clock that ticks, so the counts on the setup screen stay current while it
@@ -110,7 +119,8 @@ function StudyPageInner() {
   const [loaded, setLoaded] = useState(false);
 
   const [direction, setDirection] = useState<Direction>('forward');
-  const [deck, setDeck] = useState<FilterMode>('due');
+  // Null means the recommended sitting; a filter means the learner overrode it.
+  const [deck, setDeck] = useState<FilterMode | null>(null);
   const [activity, setActivity] = useState<Activity>('cards');
   const [session, setSession] = useState<SessionState | null>(null);
 
@@ -195,16 +205,46 @@ function StudyPageInner() {
 
   /* ------------------------------------------------------------- session */
 
+  /** The recommended sitting: what is due, then a few new words. */
+  const plan = useMemo(
+    () =>
+      planSession({
+        wordIds,
+        byWord: progress.byWord,
+        now,
+        newLimit: NEW_PER_SESSION,
+        size: SESSION_SIZE,
+      }),
+    [wordIds, progress.byWord, now]
+  );
+
   const buildCards = useCallback((): SessionCard[] => {
-    const ids = new Set(filterWordIds(wordIds, progress.byWord, deck, Date.now()));
-    const chosen = shuffle(words.filter((w) => ids.has(w.id))).slice(0, SESSION_SIZE);
     const promptHu = promptIsHungarian(direction);
-    return chosen.map((w) => ({
-      id: w.id,
-      prompt: promptHu ? w.hungarian : w.hebrew,
-      answer: promptHu ? w.hebrew : w.hungarian,
-    }));
-  }, [words, wordIds, progress.byWord, deck, direction]);
+    const byId = new Map(words.map((w) => [w.id, w]));
+    const toCard = (id: string, mode: 'teach' | 'review'): SessionCard | null => {
+      const word = byId.get(id);
+      if (!word) return null;
+      return {
+        id,
+        prompt: promptHu ? word.hungarian : word.hebrew,
+        answer: promptHu ? word.hebrew : word.hungarian,
+        mode,
+      };
+    };
+
+    if (deck === null) {
+      // The plan is already ordered: due first, then new. Do not shuffle it.
+      return plan.cards
+        .map((planned) => toCard(planned.id, planned.mode))
+        .filter((card): card is SessionCard => card !== null);
+    }
+
+    const ids = new Set(filterWordIds(wordIds, progress.byWord, deck, Date.now()));
+    return shuffle(words.filter((w) => ids.has(w.id)))
+      .slice(0, SESSION_SIZE)
+      .map((w) => toCard(w.id, modeFor(progress.byWord, w.id)))
+      .filter((card): card is SessionCard => card !== null);
+  }, [words, wordIds, progress.byWord, deck, direction, plan]);
 
   const beginSession = useCallback(() => {
     setSession(startSession(buildCards()));
@@ -290,6 +330,20 @@ function StudyPageInner() {
   }, []);
 
   /**
+   * A word has been met. It enters the schedule as something being learned
+   * rather than something answered: there was no question to get right.
+   */
+  const handleTaught = useCallback(() => {
+    const cardId = card?.id;
+    void grade('learning');
+    // Meeting a word is not learning it, so it comes back as a question before
+    // the sitting ends.
+    if (cardId) {
+      setSession((prev) => (prev ? requeueForReview(prev, cardId) : prev));
+    }
+  }, [card, grade]);
+
+  /**
    * Asking for the answer is allowed, and it is an admission: with a microphone
    * available it records the card as not known, which the learner can overturn
    * with the next click. Without one there is nothing to demonstrate with, so
@@ -369,6 +423,7 @@ function StudyPageInner() {
         <TopBar onBack={() => router.push(`/${pair}`)} stats={stats} />
         <SessionSetup
           topicName={topic.nameHe}
+          plan={plan}
           deckCounts={deckCounts}
           direction={direction}
           onDirectionChange={setDirection}
@@ -400,8 +455,9 @@ function StudyPageInner() {
 
   const { position, total } = sessionProgress(session);
   // Quiz and writing ask the question themselves; every activity shares the
-  // reveal and the verdict that follow.
-  const asking = session.stage === 'prompt';
+  // reveal and the verdict that follow. A word being met for the first time is
+  // never asked, whatever the activity: there is nothing to answer with yet.
+  const asking = session.stage === 'prompt' && card?.mode === 'review';
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
@@ -437,6 +493,7 @@ function StudyPageInner() {
           onSpeakPractice={handlePractice}
           onSpeechUnavailable={speak}
           onShowAnswer={handleShowAnswer}
+          onTaught={handleTaught}
           onGrade={(status) => void grade(status)}
           onOverride={(status) => void override(status)}
           onNext={() => setSession((prev) => (prev ? advance(prev) : prev))}

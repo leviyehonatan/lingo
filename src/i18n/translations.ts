@@ -129,6 +129,23 @@ const heRaw = {
   resetConfirm: 'לאפס את כל ההתקדמות בכל המילים? אי אפשר לבטל.',
   resetCancel: 'ביטול',
   resetDo: 'איפוס',
+  planHeadline: (due: number, fresh: number) =>
+    due && fresh
+      ? `${due} לחזרה · ${fresh} מילים חדשות`
+      : due
+        ? `${due} מילים לחזרה`
+        : fresh
+          ? `${fresh} מילים חדשות`
+          : 'אין מה לתרגל כרגע',
+  planExplain: 'קודם המילים שהגיע זמנן, ואז מילים חדשות',
+  planNothing: 'סיימתם להיום. כל המילים שלמדתם מחכות לתאריך החזרה שלהן.',
+  planNothingHint: (waiting: number) => `${waiting} מילים ממתינות`,
+  planAheadCta: 'לתרגל בכל זאת',
+  optionsOpen: 'שינוי הגדרות',
+  optionsClose: 'סגירה',
+  teachTitle: 'מילה חדשה',
+  teachTask: 'הכירו את המילה ואמרו אותה בקול',
+  teachGot: 'הבנתי · למדתי',
   taskSpeak: 'אמרו את התשובה בקול',
   speakAnswer: '🎤 אמירת התשובה',
   speakAnswerHint: 'זה מה שנבדק — הדירוג נקבע לפי מה שנשמע',
@@ -281,6 +298,23 @@ const enRaw: typeof heRaw = {
   resetConfirm: 'Reset progress on every word? This cannot be undone.',
   resetCancel: 'Cancel',
   resetDo: 'Reset',
+  planHeadline: (due: number, fresh: number) =>
+    due && fresh
+      ? `${due} to review · ${fresh} new`
+      : due
+        ? `${due} to review`
+        : fresh
+          ? `${fresh} new words`
+          : 'Nothing to practise right now',
+  planExplain: 'Words that are due first, then new ones',
+  planNothing: 'Done for now. Everything you have learned is waiting for its review date.',
+  planNothingHint: (waiting: number) => `${waiting} words waiting`,
+  planAheadCta: 'Practise anyway',
+  optionsOpen: 'Change settings',
+  optionsClose: 'Close',
+  teachTitle: 'New word',
+  teachTask: 'Meet the word and say it aloud',
+  teachGot: 'Got it',
   taskSpeak: 'Say the answer aloud',
   speakAnswer: '🎤 Say the answer',
   speakAnswerHint: 'This is the test — the grade follows what is heard',

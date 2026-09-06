@@ -9,6 +9,7 @@ import {
   lastAnswer,
   noteAttempt,
   recordAnswer,
+  requeueForReview,
   revealAnswer,
   sessionProgress,
   startSession,
@@ -17,8 +18,8 @@ import {
 } from './session';
 
 const cards: SessionCard[] = [
-  { id: 'a', prompt: 'igen', answer: 'כן' },
-  { id: 'b', prompt: 'nem', answer: 'לא' },
+  { id: 'a', prompt: 'igen', answer: 'כן', mode: 'review' },
+  { id: 'b', prompt: 'nem', answer: 'לא', mode: 'review' },
 ];
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -127,6 +128,7 @@ describe('summarize', () => {
       known: 1,
       learning: 0,
       unknown: 1,
+      taught: 0,
       corrected: 1,
       recalledAloud: 0,
       pronounced: 0,
@@ -140,6 +142,7 @@ describe('summarize', () => {
       known: 0,
       learning: 0,
       unknown: 0,
+      taught: 0,
       corrected: 0,
       recalledAloud: 0,
       pronounced: 0,
@@ -230,5 +233,65 @@ describe('spoken attempts', () => {
     expect(summary.recalledAloud).toBe(1);
     expect(summary.pronounced).toBe(1);
     expect(summary.total).toBe(2);
+  });
+});
+
+describe('taught words', () => {
+  it('counts the new words a sitting actually got through', () => {
+    const mixed: SessionCard[] = [
+      { id: 'a', prompt: 'igen', answer: 'כן', mode: 'teach' },
+      { id: 'b', prompt: 'nem', answer: 'לא', mode: 'review' },
+    ];
+    let state = startSession(mixed);
+    state = advance(recordAnswer(state, 'learning', NOW + 600_000, NOW));
+    expect(summarize(state).taught).toBe(1);
+
+    state = recordAnswer(state, 'known', NOW + DAY, NOW);
+    const summary = summarize(state);
+    expect(summary.taught).toBe(1);
+    expect(summary.total).toBe(2);
+  });
+});
+
+describe('requeueForReview', () => {
+  const teachThenReview: SessionCard[] = [
+    { id: 'a', prompt: 'igen', answer: 'כן', mode: 'teach' },
+    { id: 'b', prompt: 'nem', answer: 'לא', mode: 'review' },
+  ];
+
+  it('asks for a word met this sitting before the sitting ends', () => {
+    let state = startSession(teachThenReview);
+    state = requeueForReview(state, 'a');
+
+    expect(state.cards.map((c) => `${c.id}:${c.mode}`)).toEqual([
+      'a:teach',
+      'b:review',
+      'a:review',
+    ]);
+  });
+
+  it('requeues an introduction only once', () => {
+    let state = requeueForReview(startSession(teachThenReview), 'a');
+    state = requeueForReview(state, 'a');
+    expect(state.cards.filter((c) => c.id === 'a')).toHaveLength(2);
+  });
+
+  it('leaves a card that was already a question alone', () => {
+    const state = startSession(teachThenReview);
+    expect(requeueForReview(state, 'b')).toBe(state);
+  });
+
+  it('reaches the requeued card by advancing', () => {
+    let state = requeueForReview(startSession(teachThenReview), 'a');
+    state = advance(recordAnswer(state, 'learning', NOW + 600_000, NOW));
+    state = advance(recordAnswer(state, 'known', NOW + DAY, NOW));
+
+    expect(state.stage).toBe('prompt');
+    expect(currentCard(state)).toEqual({
+      id: 'a',
+      prompt: 'igen',
+      answer: 'כן',
+      mode: 'review',
+    });
   });
 });

@@ -99,6 +99,31 @@ optional and the self-grading path is the fallback. The e2e suite says which
 path each spec is testing, and drives a fake recognizer rather than a
 microphone.
 
+### D5 — Teach before testing, and one path instead of a matrix (2026-09-06)
+
+Two complaints, one cause: the session asked learners to produce words they had
+never seen, and made them assemble their own sitting out of direction, group and
+activity before it would start.
+
+**A word with no progress row is taught, not tested.** It appears with its
+answer, with pronunciation practice offered, and a button that says it has been
+met. Meeting it schedules it as something being learned, and it is requeued to
+the end of the same sitting as a question, because meeting a word without ever
+being asked for it teaches nothing.
+
+**The setup screen offers one sitting.** `src/lib/plan.ts` builds it: everything
+due, oldest first, then a few new words, capped. The learner reads one line
+saying what it contains and presses one button. Direction, group and activity
+still exist, behind a disclosure, and choosing a group overrides the plan while
+keeping the teach-versus-test rule.
+
+The caps are the tap the method warns about: new cards are what generate
+tomorrow's reviews, so a sitting introduces at most a handful.
+
+This also surfaced a bug: with quiz or writing selected, a word being met for
+the first time was asked as a multiple-choice question. Teaching now overrides
+the activity, since there is nothing to answer with yet.
+
 ## Proposed, not yet decided
 
 ### P1 — Pass or fail with a reset, instead of a three-way status
