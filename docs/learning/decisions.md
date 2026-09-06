@@ -124,6 +124,16 @@ This also surfaced a bug: with quiz or writing selected, a word being met for
 the first time was asked as a multiple-choice question. Teaching now overrides
 the activity, since there is nothing to answer with yet.
 
+Meeting a word ends on its own confirmation rather than the review verdict. The
+verdict named a grade and offered to correct it, which makes no sense for
+something the learner was never asked. It now says the word was added and that
+it will come back before the round ends.
+
+The app also says the Hungarian aloud when the card appears, whenever the
+Hungarian is on screen: always while teaching, and on the prompt side of a
+forward review. Ears before mouth, as the method puts it, and it never plays a
+side the learner is supposed to be recalling.
+
 ## Proposed, not yet decided
 
 ### P1 — Pass or fail with a reset, instead of a three-way status

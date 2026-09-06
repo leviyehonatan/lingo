@@ -8,7 +8,7 @@
  * fifteen controls at once and never said which of them the moment called for.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { WordStatus } from '@/lib/progress';
 import type { FilterMode } from '@/lib/study';
 import { humanizeInterval } from '@/lib/interval';
@@ -354,7 +354,7 @@ export function GuidedCard({
   canListen,
   onSpeak,
   onSpeakPractice,
-  onSpeechUnavailable,
+  onHear,
   onShowAnswer,
   onTaught,
   onGrade,
@@ -370,7 +370,8 @@ export function GuidedCard({
   canListen: boolean;
   onSpeak: (result: SpokenResult) => void;
   onSpeakPractice: (result: SpokenResult) => void;
-  onSpeechUnavailable: () => void;
+  /** Say the Hungarian aloud. */
+  onHear: () => void;
   onShowAnswer: () => void;
   /** A new word has been met; it enters the schedule rather than being graded. */
   onTaught: () => void;
@@ -380,6 +381,15 @@ export function GuidedCard({
 }) {
   const promptHu = promptIsHungarian(direction);
   const teaching = card.mode === 'teach' && stage === 'prompt';
+
+  // Ears before mouth: the app says the Hungarian first, so the learner has
+  // something to imitate rather than guessing from the spelling. Only when the
+  // Hungarian is already on screen, so a review never leaks its own answer.
+  const hungarianOnScreen = promptHu || card.mode === 'teach';
+  useEffect(() => {
+    if (hungarianOnScreen && stage === 'prompt') onHear();
+    // Once per card: replaying on every render would talk over the learner.
+  }, [card.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const task = teaching
     ? t.teachTask
     : stage === 'prompt'
@@ -415,14 +425,15 @@ export function GuidedCard({
         >
           {card.prompt}
         </span>
-        <button
-          data-speak
-          onClick={onSpeechUnavailable}
-          className="mt-3 rounded-full p-2 text-lg transition hover:bg-slate-700"
-          title={t.keySpeak}
-        >
-          🔊
-        </button>
+        {hungarianOnScreen && (
+          <button
+            data-speak
+            onClick={onHear}
+            className="mx-auto mt-3 flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-slate-400 transition hover:bg-slate-700 hover:text-white"
+          >
+            🔊 {t.hearAgain}
+          </button>
+        )}
 
         {(teaching || stage !== 'prompt') && (
           <>
@@ -528,14 +539,55 @@ export function GuidedCard({
         </div>
       )}
 
-      {stage === 'feedback' && answer && (
-        <Verdict
-          answer={answer}
-          heard={heard}
-          onOverride={onOverride}
-          onNext={onNext}
-        />
+      {stage === 'feedback' &&
+        answer &&
+        (card.mode === 'teach' ? (
+          <Introduced answer={answer} onNext={onNext} />
+        ) : (
+          <Verdict
+            answer={answer}
+            heard={heard}
+            onOverride={onOverride}
+            onNext={onNext}
+          />
+        ))}
+    </div>
+  );
+}
+
+/**
+ * What a learner sees after meeting a word. No grade and no correction row:
+ * they were not asked anything, so there is nothing to have got wrong.
+ */
+function Introduced({
+  answer,
+  onNext,
+}: {
+  answer: SessionAnswer;
+  onNext: () => void;
+}) {
+  return (
+    <div className="mt-6 rounded-xl border border-slate-700 bg-slate-800/60 p-4">
+      <p data-introduced className="text-center text-sm font-medium text-indigo-200">
+        {t.teachRecorded}
+      </p>
+      <p className="mt-1 text-center text-xs text-slate-400">{t.teachRequeued}</p>
+      {answer.nextReview !== null && (
+        <p className="mt-1 text-center text-xs text-slate-500">
+          <span data-verdict-interval>
+            {t.verdictReturn(
+              formatDelay(t, humanizeInterval(answer.nextReview - answer.answeredAt))
+            )}
+          </span>
+        </p>
       )}
+      <button
+        data-session-next
+        onClick={onNext}
+        className="mt-5 w-full rounded-xl bg-indigo-600 px-5 py-3 text-base font-semibold text-white transition hover:bg-indigo-500"
+      >
+        {t.sessionNext}
+      </button>
     </div>
   );
 }

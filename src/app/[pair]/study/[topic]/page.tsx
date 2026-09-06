@@ -357,6 +357,7 @@ function StudyPageInner() {
     }
   }, [canListen, grade]);
 
+  /** Speak the Hungarian side of the card, whichever side that is. */
   const speak = useCallback(() => {
     if (!card) return;
     const hungarian = promptIsHungarian(direction) ? card.prompt : card.answer;
@@ -491,7 +492,7 @@ function StudyPageInner() {
           canListen={canListen}
           onSpeak={handleSpoken}
           onSpeakPractice={handlePractice}
-          onSpeechUnavailable={speak}
+          onHear={speak}
           onShowAnswer={handleShowAnswer}
           onTaught={handleTaught}
           onGrade={(status) => void grade(status)}
