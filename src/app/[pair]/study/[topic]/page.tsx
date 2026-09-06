@@ -11,6 +11,7 @@ import {
 } from '@/lib/api';
 import type { LevelData, ProgressData } from '@/lib/api';
 import { computeStats, filterWordIds, sameIdSet, shuffle } from '@/lib/study';
+import { matchesAnyAlternative } from '@/lib/answer-match';
 import type { FilterMode } from '@/lib/study';
 import type { WordStatus } from '@/lib/progress';
 
@@ -841,12 +842,20 @@ function WritingMode({
   );
 }
 
+interface SpeechRecognitionAlternative {
+  transcript: string;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  /** How many candidate transcripts this result carries. */
+  length: number;
+  [index: number]: SpeechRecognitionAlternative | undefined;
+}
+
 interface SpeechRecognitionEvent {
   resultIndex: number;
-  results: Array<{
-    isFinal: boolean;
-    [index: number]: { transcript: string };
-  }>;
+  results: Array<SpeechRecognitionResult>;
 }
 
 interface SpeechRecognitionError {
@@ -925,21 +934,26 @@ function useVoiceRecognition({
       let transcript = '';
       let isFinal = false;
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
+        transcript += event.results[i][0]?.transcript ?? '';
         if (event.results[i].isFinal) isFinal = true;
       }
       transcript = transcript.trim();
 
-      const expected = callbacksRef.current.expectedText
-        .replace(/[\/\(\)]/g, '')
-        .trim()
-        .toLowerCase();
-      const spoken = transcript
-        .replace(/[\.\,\?\!]/g, '')
-        .trim()
-        .toLowerCase();
-      const correct =
-        spoken.includes(expected) || expected.includes(spoken);
+      // The engine ranks several candidates per utterance and the answer is
+      // not always the one it ranks first, so every candidate for the latest
+      // segment gets a chance alongside the transcript shown to the learner.
+      const candidates = new Set<string>();
+      if (transcript) candidates.add(transcript);
+      const latest = event.results[event.results.length - 1];
+      for (let a = 0; a < (latest?.length ?? 0); a++) {
+        const alternative = latest[a]?.transcript?.trim();
+        if (alternative) candidates.add(alternative);
+      }
+
+      const correct = matchesAnyAlternative(
+        [...candidates],
+        callbacksRef.current.expectedText
+      );
 
       setPartial(transcript);
 
