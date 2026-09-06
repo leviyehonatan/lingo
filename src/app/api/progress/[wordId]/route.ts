@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { computeNextReview, isWordStatus } from '@/lib/progress';
+import { isLapse, parseTelemetry } from '@/lib/telemetry';
 import type { UpdateProgressResponse } from '@/lib/api-types';
 
 export const runtime = 'nodejs';
@@ -17,6 +18,12 @@ export const runtime = 'nodejs';
  * instead of adding another one. The learner overturning a verdict changed
  * their mind about one review; counting it twice would march the word up its
  * interval ladder for an answer they only gave once.
+ *
+ * The body may also carry telemetry: which direction was being studied, whether
+ * the word was being met or asked for, how the answer arrived, how long it took
+ * and how often the learner spoke. It is written to `ReviewEvent`, so the
+ * schedule can later be judged against what actually happened rather than
+ * against the last button pressed.
  */
 export async function PUT(
   request: NextRequest,
@@ -52,7 +59,7 @@ export async function PUT(
   const userId = session.user.id;
   const existing = await prisma.wordProgress.findUnique({
     where: { wordId_userId: { wordId, userId } },
-    select: { reviewCount: true },
+    select: { reviewCount: true, seenCount: true, lapses: true, status: true },
   });
 
   const now = Date.now();
@@ -64,23 +71,58 @@ export async function PUT(
     : (existing?.reviewCount ?? 0) + 1;
   const nextReview = computeNextReview(status, reviewCount, now);
 
-  await prisma.wordProgress.upsert({
-    where: { wordId_userId: { wordId, userId } },
-    update: {
-      status,
-      reviewCount,
-      lastReviewed: BigInt(now),
-      nextReview: BigInt(nextReview),
-    },
-    create: {
-      wordId,
-      userId,
-      status,
-      reviewCount,
-      lastReviewed: BigInt(now),
-      nextReview: BigInt(nextReview),
-    },
-  });
+  // A correction re-grades a card the learner has already been shown, so it is
+  // not another sighting. A lapse is judged against the status being replaced.
+  const seenCount = correction
+    ? Math.max(existing?.seenCount ?? 0, 1)
+    : (existing?.seenCount ?? 0) + 1;
+  const lapses = (existing?.lapses ?? 0) + (isLapse(existing?.status, status) ? 1 : 0);
+
+  const telemetry = parseTelemetry(body);
+
+  await prisma.$transaction([
+    prisma.wordProgress.upsert({
+      where: { wordId_userId: { wordId, userId } },
+      update: {
+        status,
+        reviewCount,
+        seenCount,
+        lapses,
+        lastReviewed: BigInt(now),
+        nextReview: BigInt(nextReview),
+      },
+      create: {
+        wordId,
+        userId,
+        status,
+        reviewCount,
+        seenCount,
+        lapses,
+        lastReviewed: BigInt(now),
+        nextReview: BigInt(nextReview),
+      },
+    }),
+    // The log is written in the same transaction as the state it explains, so
+    // the two can never disagree about what happened.
+    ...(telemetry
+      ? [
+          prisma.reviewEvent.create({
+            data: {
+              userId,
+              wordId,
+              direction: telemetry.direction,
+              mode: telemetry.mode,
+              source: telemetry.source,
+              status,
+              corrected: correction,
+              latencyMs: telemetry.latencyMs ?? null,
+              spokenAttempts: telemetry.spokenAttempts ?? 0,
+              reviewedAt: BigInt(now),
+            },
+          }),
+        ]
+      : []),
+  ]);
 
   const response: UpdateProgressResponse = { nextReview };
   return NextResponse.json(response);

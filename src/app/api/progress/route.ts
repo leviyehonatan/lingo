@@ -33,6 +33,8 @@ export async function GET() {
       last_reviewed: Number(p.lastReviewed),
       review_count: p.reviewCount,
       next_review: Number(p.nextReview),
+      seen_count: p.seenCount,
+      lapses: p.lapses,
     })),
     daily: daily.map((d) => ({ date: d.date, count: d.count })),
   };
@@ -40,7 +42,14 @@ export async function GET() {
   return NextResponse.json(body);
 }
 
-/** `DELETE /api/progress` — start over: drop reviews and daily counters alike. */
+/**
+ * `DELETE /api/progress` — start over.
+ *
+ * Drops the review log as well as the schedule and the daily counters. A
+ * learner who resets their progress has not merely forgotten the words; the
+ * history of how they answered them describes a run that no longer exists, and
+ * leaving it behind would keep it in their statistics.
+ */
 export async function DELETE() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -50,6 +59,7 @@ export async function DELETE() {
   await prisma.$transaction([
     prisma.wordProgress.deleteMany({ where: { userId: session.user.id } }),
     prisma.dailyRecord.deleteMany({ where: { userId: session.user.id } }),
+    prisma.reviewEvent.deleteMany({ where: { userId: session.user.id } }),
   ]);
 
   return NextResponse.json({ success: true });

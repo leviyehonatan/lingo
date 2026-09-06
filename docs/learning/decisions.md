@@ -176,6 +176,41 @@ for, so it now lives only there, and a review card has exactly one thing to say.
 An open microphone also says what it wants for as long as it is open, naming the
 language and whether it expects the word or the meaning.
 
+### D9 — Reviews are logged, not just summarised (2026-09-06)
+
+A status column can say where a word stands and nothing about how it got there,
+so the app could not tell whether a learner was improving, hesitating, or
+guessing.
+
+Every answered card now writes a `ReviewEvent`: direction, whether the word was
+being met or asked for, how the answer arrived, the grade, whether it was a
+correction, how long it took, and how often the learner spoke. `WordProgress`
+also carries `seenCount`, which counts introductions as well as questions, and
+`lapses`, the count of times a known word came back forgotten.
+
+`GET /api/stats` reads the log and answers the questions worth asking: how many
+words have been met and how many are known, how many keep slipping, the share
+of answers recalled in the last month, the typical time to answer, and how many
+days were practised. The setup screen shows them, with the accuracy line saying
+what the method says: between 90 and 95 percent means the intervals are right,
+and anything else is the schedule being wrong rather than the learner.
+
+The log is written in the same transaction as the state it explains, and it is
+deleted when a learner resets their progress, since it describes a run that no
+longer exists.
+
+Events carry the direction, which means the two directions can be told apart in
+the numbers before they are scheduled apart. That is the evidence D1 was
+missing.
+
+### D10 — Hands-free recovers on its own (2026-09-06)
+
+Hands-free stopped being hands-free the moment recognition failed: it waited
+for a button. It now listens again by itself after a miss, up to three attempts
+on a card, and then records the failure and moves on. One mishearing is still
+not a failure; three in a row with nothing heard means the learner cannot be
+heard, and the session should carry on rather than sit there listening.
+
 ## Proposed, not yet decided
 
 ### P1 — Pass or fail with a reset, instead of a three-way status
@@ -218,10 +253,12 @@ We cannot currently tell whether reviews are landing in the 90 to 95 percent
 band the schedule assumes. Without it, every interval-tuning discussion is
 guesswork.
 
-### P8 — Persist pronunciation attempts
+### P8 — Use what is now being measured
 
-Counted per session today, forgotten afterwards. Needs somewhere to live; see
-D4 and D1.
+The log records latency, source and lapses; nothing reads them back into the
+schedule yet. The obvious first uses: treat a word with lapses as harder and
+shorten its ladder, and treat a very fast answer as a signal the interval was
+too short, which is the one thing the method says a third grade should mean.
 
 ### P7 — Enforce the recall window
 

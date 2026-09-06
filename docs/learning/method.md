@@ -135,10 +135,11 @@ Honest gap list, so nobody assumes the app already implements the above.
   the book warns about, and there is no frequency ordering anywhere. Within a
   sitting the order is now due-first rather than arbitrary, but the pool a topic
   draws from is still a themed list.
-- **We do not measure accuracy**, so we cannot tell whether we are near the 90 to
-  95 percent band the schedule is supposed to hold.
-- **Nothing enforces the short recall window.** The session asks for an answer
-  but does not time it.
+- **What is measured is not yet used.** Accuracy, answer times and lapses are
+  recorded and shown, but nothing feeds them back into the intervals, so the
+  schedule still cannot correct itself.
+- **Nothing enforces the short recall window.** The session times the answer now,
+  but does not hold the learner to five or ten seconds.
 
 Closed since this was written. A word the learner has never met is taught
 rather than tested, and the session decides its own contents instead of asking

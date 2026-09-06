@@ -13,6 +13,7 @@ import type { WordStatus } from '@/lib/progress';
 import type { FilterMode } from '@/lib/study';
 import { humanizeInterval } from '@/lib/interval';
 import type { SessionPlan } from '@/lib/plan';
+import type { LearnerStats } from '@/lib/stats';
 import type {
   SessionAnswer,
   SessionAttempt,
@@ -27,6 +28,17 @@ export type Direction = 'forward' | 'reverse';
 export type Activity = 'cards' | 'quiz' | 'writing';
 
 const DECKS: readonly FilterMode[] = ['due', 'unknown', 'learning', 'known', 'all'];
+
+/**
+ * How many times a card listens before it stops asking. Hands-free has to end
+ * somewhere: one mishearing is not evidence of forgetting, but three in a row
+ * with nothing else happening means the learner cannot be heard, and the
+ * session should carry on rather than sit there listening.
+ */
+const MAX_SPOKEN_ATTEMPTS = 3;
+
+/** How long to wait before listening again after a miss. */
+const RETRY_DELAY_MS = 1200;
 
 const DECK_LABELS: Record<FilterMode, string> = {
   due: t.filterDue,
@@ -81,6 +93,7 @@ export function SessionSetup({
   canListen,
   handsFree,
   onHandsFreeChange,
+  stats,
   onStart,
   onReset,
 }: {
@@ -101,6 +114,8 @@ export function SessionSetup({
   canListen: boolean;
   handsFree: boolean;
   onHandsFreeChange: (on: boolean) => void;
+  /** How the learner is doing, or null while it is still being fetched. */
+  stats: LearnerStats | null;
   onStart: () => void;
   onReset: () => void;
 }) {
@@ -253,6 +268,8 @@ export function SessionSetup({
         </div>
       )}
 
+      {stats && <Progress stats={stats} />}
+
       <div className="mt-10 border-t border-slate-800 pt-4">
         {confirmingReset ? (
           <div className="flex flex-wrap items-center gap-3">
@@ -285,6 +302,53 @@ export function SessionSetup({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * The numbers that say whether this is working. Accuracy carries the method's
+ * own reading of itself: a schedule holding between 90 and 95 percent is right,
+ * and anything else is the intervals being wrong rather than the learner.
+ */
+function Progress({ stats }: { stats: LearnerStats }) {
+  const pct = stats.accuracy === null ? null : Math.round(stats.accuracy * 100);
+  const verdict =
+    pct === null
+      ? null
+      : pct < 85
+        ? t.statsAccuracyLow
+        : pct > 97
+          ? t.statsAccuracyHigh
+          : t.statsAccuracyGood;
+
+  return (
+    <section data-stats className="mt-8 rounded-2xl border border-slate-800 p-4">
+      <h2 className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+        {t.statsTitle}
+      </h2>
+      {stats.met === 0 ? (
+        <p className="text-xs text-slate-500">{t.statsEmpty}</p>
+      ) : (
+        <ul className="space-y-1 text-xs text-slate-400">
+          <li data-stats-met>
+            {t.statsMet(stats.met)} · {t.statsKnown(stats.known)}
+            {stats.shaky > 0 && ` · ${t.statsShaky(stats.shaky)}`}
+          </li>
+          {pct !== null && (
+            <li data-stats-accuracy>
+              {t.statsAccuracy(pct)}
+              <span className="ms-2 text-slate-600">{verdict}</span>
+            </li>
+          )}
+          {stats.medianLatencyMs !== null && (
+            <li data-stats-speed>
+              {t.statsSpeed((stats.medianLatencyMs / 1000).toFixed(1))}
+            </li>
+          )}
+          {stats.activeDays > 0 && <li>{t.statsDays(stats.activeDays)}</li>}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -422,9 +486,19 @@ export function GuidedCard({
    * right. Nothing is recorded until they say so.
    */
   const [missed, setMissed] = useState<SpokenResult | null>(null);
+  const [attempts, setAttempts] = useState(0);
+  const spent = attempts >= MAX_SPOKEN_ATTEMPTS;
 
   const handleSpeak = (result: SpokenResult) => {
     setMissed(result.accepted ? null : result);
+    if (!result.accepted) {
+      const used = attempts + 1;
+      setAttempts(used);
+      // Hands-free means hands-free even when it goes wrong: it listens again
+      // on its own, and when it has run out of tries it records the failure
+      // and carries on rather than waiting to be rescued.
+      if (handsFree && used >= MAX_SPOKEN_ATTEMPTS) onGrade('unknown');
+    }
     onSpeak(result);
   };
 
@@ -432,7 +506,15 @@ export function GuidedCard({
     setRepeated(result);
     onSpeakPractice(result);
     // A good repetition is the whole of this step, so it moves on by itself.
-    if (result.accepted) onTaught();
+    if (result.accepted) {
+      onTaught();
+      return;
+    }
+    const used = attempts + 1;
+    setAttempts(used);
+    // Failing to be heard must not trap a learner on a word they are only
+    // being introduced to; hands-free moves them on once it has tried.
+    if (handsFree && used >= MAX_SPOKEN_ATTEMPTS) onTaught();
   };
 
   // Ears before mouth: the app says the Hungarian first, so the learner has
@@ -454,6 +536,9 @@ export function GuidedCard({
    * so the learner is not talking over a voice.
    */
   const autoListenDelay = handsFree ? (hungarianOnScreen ? 1800 : 600) : null;
+
+  /** After a miss, hands-free waits a moment and listens again by itself. */
+  const handsFreeRetryDelay = handsFree ? RETRY_DELAY_MS : null;
 
   // Hands-free means the verdict is read, not clicked past. A new word gets
   // longer, because that panel is where its meaning is shown one last time.
@@ -552,12 +637,18 @@ export function GuidedCard({
                 listeningLabel={t.listeningRepeat}
                 graded
                 dataAttr="data-teach-repeat"
-                autoStartDelayMs={repeated ? null : autoListenDelay}
+                autoStartDelayMs={
+                  spent ? null : repeated ? handsFreeRetryDelay : autoListenDelay
+                }
+                autoStartKey={attempts}
                 onResult={handleRepeat}
               />
               {repeated && !repeated.accepted && (
                 <p data-teach-retry className="text-center text-xs text-amber-300">
                   {t.teachRetry(repeated.heard)}
+                  <span className="ms-2 text-slate-500">
+                    {t.attemptCount(Math.min(attempts, MAX_SPOKEN_ATTEMPTS), MAX_SPOKEN_ATTEMPTS)}
+                  </span>
                 </p>
               )}
               <button
@@ -593,7 +684,10 @@ export function GuidedCard({
                 listeningLabel={answerIsHebrew ? t.listeningMeaning : t.listeningWord}
                 graded
                 dataAttr="data-speak-answer"
-                autoStartDelayMs={missed ? null : autoListenDelay}
+                autoStartDelayMs={
+                  spent ? null : missed ? handsFreeRetryDelay : autoListenDelay
+                }
+                autoStartKey={attempts}
                 onResult={handleSpeak}
               />
 
@@ -606,7 +700,12 @@ export function GuidedCard({
                     {t.teachRetry(missed.heard)}
                   </p>
                   <p className="mt-1 text-center text-[0.7rem] text-slate-500">
-                    {t.missRetryHint}
+                    {handsFree && !spent
+                      ? t.attemptCount(
+                          Math.min(attempts, MAX_SPOKEN_ATTEMPTS),
+                          MAX_SPOKEN_ATTEMPTS
+                        )
+                      : t.missRetryHint}
                   </p>
                   <div className="mt-3 flex flex-wrap justify-center gap-2">
                     <button

@@ -23,10 +23,13 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   fetchVocabulary,
   fetchProgress,
+  fetchStats,
   updateProgress,
   recordDaily,
   resetProgress,
 } from '@/lib/api';
+import type { LearnerStats } from '@/lib/stats';
+import type { ReviewSource } from '@/lib/telemetry';
 import type { LevelData, ProgressData } from '@/lib/api';
 import { computeStats, filterWordIds, shuffle } from '@/lib/study';
 import { modeFor, planSession } from '@/lib/plan';
@@ -133,6 +136,7 @@ function StudyPageInner() {
   const [deck, setDeck] = useState<FilterMode | null>(null);
   const [activity, setActivity] = useState<Activity>('cards');
   const [session, setSession] = useState<SessionState | null>(null);
+  const [learnerStats, setLearnerStats] = useState<LearnerStats | null>(null);
 
   const now = useNow(30_000);
 
@@ -189,6 +193,21 @@ function StudyPageInner() {
       cancelled = true;
     };
   }, []);
+
+  // Reloaded whenever the setup screen comes back, so the numbers reflect the
+  // sitting that just finished rather than the state at page load.
+  useEffect(() => {
+    if (session !== null) return;
+    let cancelled = false;
+    fetchStats()
+      .then((data) => {
+        if (!cancelled) setLearnerStats(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   const topic = useMemo(() => {
     for (const level of levels) {
@@ -288,14 +307,42 @@ function StudyPageInner() {
   const card = session ? currentCard(session) : undefined;
   const verdict = session ? lastAnswer(session) : undefined;
 
+  /**
+   * What is on screen and since when, so an answer can be timed and attributed.
+   * A ref rather than state: none of it should cause a render, and it is
+   * stamped with the card id so a slow write can never report the wrong word.
+   */
+  const showing = useRef<{
+    cardId: string;
+    mode: 'teach' | 'review';
+    at: number;
+    spoken: number;
+  } | null>(null);
+
+  const cardId = card?.id;
+  const cardMode = card?.mode;
+  useEffect(() => {
+    if (!cardId || !cardMode) return;
+    showing.current = { cardId, mode: cardMode, at: Date.now(), spoken: 0 };
+  }, [cardId, cardMode]);
+
   const writeProgress = useCallback(
     async (
       wordId: string,
       status: WordStatus,
-      correction = false
+      correction = false,
+      source: ReviewSource = 'buttons'
     ): Promise<number | null> => {
+      const shown = showing.current;
+      const onThisCard = shown?.cardId === wordId ? shown : null;
       try {
-        const result = await updateProgress(wordId, status, correction);
+        const result = await updateProgress(wordId, status, correction, {
+          direction,
+          mode: onThisCard?.mode ?? 'review',
+          source,
+          latencyMs: onThisCard ? Date.now() - onThisCard.at : undefined,
+          spokenAttempts: onThisCard?.spoken ?? 0,
+        });
         setProgress((prev) => ({
           ...prev,
           byWord: {
@@ -308,7 +355,7 @@ function StudyPageInner() {
         return null;
       }
     },
-    []
+    [direction]
   );
 
   const countToday = useCallback(async () => {
@@ -319,12 +366,15 @@ function StudyPageInner() {
   }, []);
 
   const grade = useCallback(
-    async (status: WordStatus) => {
+    async (status: WordStatus, source: ReviewSource = 'buttons') => {
       if (!card) return;
       // The verdict appears at once; the schedule it names arrives with the
       // server's answer, so a slow write never blocks the session.
       setSession((prev) => (prev ? recordAnswer(prev, status, null, Date.now()) : prev));
-      const [nextReview] = await Promise.all([writeProgress(card.id, status), countToday()]);
+      const [nextReview] = await Promise.all([
+        writeProgress(card.id, status, false, source),
+        countToday(),
+      ]);
       setSession((prev) => (prev ? attachSchedule(prev, card.id, nextReview) : prev));
     },
     [card, writeProgress, countToday]
@@ -334,7 +384,7 @@ function StudyPageInner() {
     async (status: WordStatus) => {
       if (!card) return;
       setSession((prev) => (prev ? correctAnswer(prev, status, null, Date.now()) : prev));
-      const nextReview = await writeProgress(card.id, status, true);
+      const nextReview = await writeProgress(card.id, status, true, 'buttons');
       setSession((prev) => (prev ? attachSchedule(prev, card.id, nextReview) : prev));
     },
     [card, writeProgress]
@@ -353,13 +403,15 @@ function StudyPageInner() {
       setSession((prev) =>
         prev ? noteAttempt(prev, 'recall', result.heard, result.accepted, Date.now()) : prev
       );
-      if (result.accepted) void grade('known');
+      if (showing.current) showing.current.spoken += 1;
+      if (result.accepted) void grade('known', 'speech');
     },
     [grade]
   );
 
   /** Saying the word already on screen. Practice only; it never grades. */
   const handlePractice = useCallback((result: SpokenResult) => {
+    if (showing.current) showing.current.spoken += 1;
     setSession((prev) =>
       prev
         ? noteAttempt(prev, 'pronunciation', result.heard, result.accepted, Date.now())
@@ -372,7 +424,7 @@ function StudyPageInner() {
    * rather than something answered: there was no question to get right.
    */
   const handleTaught = useCallback(() => {
-    void grade('learning');
+    void grade('learning', 'speech');
   }, [grade]);
 
   /**
@@ -383,7 +435,7 @@ function StudyPageInner() {
    */
   const handleShowAnswer = useCallback(() => {
     if (canListen) {
-      void grade('unknown');
+      void grade('unknown', 'reveal');
     } else {
       setSession((prev) => (prev ? revealAnswer(prev) : prev));
     }
@@ -487,6 +539,7 @@ function StudyPageInner() {
           canListen={canListen}
           handsFree={handsFree}
           onHandsFreeChange={toggleHandsFree}
+          stats={learnerStats}
           onStart={beginSession}
           onReset={handleReset}
         />
@@ -526,13 +579,13 @@ function StudyPageInner() {
           key={card.id}
           card={card}
           pool={session.cards.map((c) => c.answer)}
-          onAnswer={(correct) => void grade(correct ? 'learning' : 'unknown')}
+          onAnswer={(correct) => void grade(correct ? 'learning' : 'unknown', 'quiz')}
         />
       ) : asking && activity === 'writing' && card ? (
         <WritingMode
           key={card.id}
           card={card}
-          onAnswer={(correct) => void grade(correct ? 'learning' : 'unknown')}
+          onAnswer={(correct) => void grade(correct ? 'learning' : 'unknown', 'writing')}
         />
       ) : card ? (
         <GuidedCard

@@ -334,6 +334,7 @@ export function SpeakButton({
   dataAttr,
   listeningLabel,
   autoStartDelayMs = null,
+  autoStartKey = 0,
   onResult,
 }: {
   expectedText: string;
@@ -353,6 +354,12 @@ export function SpeakButton({
    * from opening while the app is still speaking.
    */
   autoStartDelayMs?: number | null;
+  /**
+   * Changes every time the caller wants another automatic listen. Without it,
+   * a second miss with the same delay would leave the effect unchanged and the
+   * microphone would never reopen.
+   */
+  autoStartKey?: number;
   onResult: (result: SpokenResult) => void;
 }) {
   const { state, partial, error, start, stop } = useListening({
@@ -365,7 +372,7 @@ export function SpeakButton({
     if (autoStartDelayMs === null) return;
     const id = setTimeout(start, autoStartDelayMs);
     return () => clearTimeout(id);
-  }, [autoStartDelayMs, start]);
+  }, [autoStartDelayMs, autoStartKey, start]);
 
   const listening = state === 'listening';
   const attrs: Record<string, string> = { [dataAttr]: 'true' };
