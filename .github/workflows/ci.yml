@@ -1,11 +1,15 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
-  # Lets deploy-lingo.yml run this as a `needs:` gate before touching the server.
+  # No `push: main` trigger: the deploy workflow calls this one on every push
+  # to main, so a second copy here only ran everything twice.
   workflow_call:
+
+# A new push to the same PR makes the run for the old one pointless.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
@@ -64,7 +68,42 @@ jobs:
   # The Playwright suite drives a real dev server against a real Postgres.
   # deploy-lingo.yml runs this whole workflow as its gate, so a red e2e run
   # now blocks a deploy just as lint and typecheck do.
+  # Whether the e2e suite, the slow part, has anything new to say. A squash
+  # merge produces a commit with the same *tree* as the PR head that was just
+  # tested, so the deploy's check would otherwise run three minutes of
+  # browser tests against code that passed them minutes ago. Compare trees,
+  # not commits, so that a merge that also picked up other changes still runs.
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      e2e: ${{ steps.decide.outputs.e2e }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Has this tree already passed e2e?
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tree=$(git rev-parse 'HEAD^{tree}')
+          echo "tree $tree"
+          for wf in ci.yml deploy-lingo.yml; do
+            for sha in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$wf/runs?status=success&per_page=30" \
+                          -q '.workflow_runs[].head_sha'); do
+              [ "$sha" = "$GITHUB_SHA" ] && continue
+              t=$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$sha" -q .tree.sha 2>/dev/null) || continue
+              if [ "$t" = "$tree" ]; then
+                echo "same tree already passed in $wf run for $sha; skipping e2e"
+                echo "e2e=false" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+          done
+          echo "e2e=true" >> "$GITHUB_OUTPUT"
+
   e2e:
+    needs: gate
+    if: needs.gate.outputs.e2e == 'true'
     runs-on: ubuntu-latest
 
     services:
