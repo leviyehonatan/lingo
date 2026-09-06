@@ -36,6 +36,9 @@ export default defineConfig({
       DATABASE_URL,
       AUTH_SECRET,
       AUTH_URL: BASE_URL,
+      // public.spec.ts and account.spec.ts assert what an anonymous visitor
+      // sees, which a dev server otherwise never shows.
+      DEV_AUTO_LOGIN: '0',
       // The app refuses to start without these; e2e never reaches Google, so
       // the values only need to be present.
       GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? 'e2e-client-id',
