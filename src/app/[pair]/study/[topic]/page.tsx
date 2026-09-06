@@ -306,16 +306,19 @@ function StudyPageInner() {
   );
 
   /**
-   * The graded utterance: the learner said the answer before seeing it. What
-   * the grader made of it becomes the grade, and the verdict shows it next to
-   * the transcript, so a bad hearing can be overturned on the spot.
+   * The graded utterance: the learner said the answer before seeing it.
+   *
+   * A match grades the card at once. A miss does not: recognition is wrong
+   * often enough that treating it as a failed recall would poison the
+   * schedule, so the attempt is recorded and the card stays open for another
+   * go, or for the learner to say what actually happened.
    */
   const handleSpoken = useCallback(
     (result: SpokenResult) => {
       setSession((prev) =>
         prev ? noteAttempt(prev, 'recall', result.heard, result.accepted, Date.now()) : prev
       );
-      void grade(result.accepted ? 'known' : 'unknown');
+      if (result.accepted) void grade('known');
     },
     [grade]
   );
@@ -357,16 +360,33 @@ function StudyPageInner() {
     }
   }, [canListen, grade]);
 
-  /** Speak the Hungarian side of the card, whichever side that is. */
+  /**
+   * Speak the Hungarian side of the card, whichever side that is.
+   *
+   * Chrome drops an utterance queued in the same tick as a cancel, which is
+   * what made the replay button do nothing the second time, so the two are
+   * separated. A Hungarian voice is picked when the system has one; without it
+   * the browser reads Hungarian with whatever default it has.
+   */
   const speak = useCallback(() => {
     if (!card) return;
     const hungarian = promptIsHungarian(direction) ? card.prompt : card.answer;
     try {
       speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(hungarian);
-      utterance.lang = 'hu-HU';
-      utterance.rate = 0.85;
-      speechSynthesis.speak(utterance);
+      setTimeout(() => {
+        // The timer runs outside the try above, and playback is a nicety: a
+        // browser that cannot do it must not take the session down with it.
+        try {
+          const utterance = new SpeechSynthesisUtterance(hungarian);
+          utterance.lang = 'hu-HU';
+          utterance.rate = 0.85;
+          const voice = speechSynthesis
+            .getVoices?.()
+            ?.find((candidate) => candidate.lang.toLowerCase().startsWith('hu'));
+          if (voice) utterance.voice = voice;
+          speechSynthesis.speak(utterance);
+        } catch {}
+      }, 0);
     } catch {}
   }, [card, direction]);
 
@@ -484,6 +504,9 @@ function StudyPageInner() {
         />
       ) : card ? (
         <GuidedCard
+          // A new card starts with a clean slate: no half-finished repetition
+          // carried over from the last one.
+          key={card.id}
           card={card}
           stage={session.stage}
           answer={verdict}

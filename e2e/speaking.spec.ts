@@ -76,33 +76,71 @@ test('saying the answer marks it known and shows what was heard', async ({ page 
   await expect.poll(async () => (await progressRows(page))[0]?.status).toBe('known');
 });
 
-test('saying the wrong thing marks it not known, and can be overturned', async ({ page }) => {
+test('a misheard answer offers another go instead of failing the card', async ({
+  page,
+}) => {
   await startSession(page);
+  const before = (await progressRows(page))[0].review_count;
 
   await page.locator('[data-speak-answer]').click();
   await say(page, 'משהו אחר');
 
+  // Nothing is graded: recognition is wrong often enough that a miss is not
+  // evidence the learner forgot the word.
+  await expect(page.locator('[data-speak-missed]')).toContainText('משהו אחר');
+  await expect(page.locator('[data-verdict]')).toHaveCount(0);
+  await page.waitForTimeout(300);
+  expect((await progressRows(page))[0].review_count).toBe(before);
+
+  // Saying it again, and being heard, grades it.
+  const answer = await expectedAnswer(page);
+  await page.locator('[data-speak-answer]').click();
+  await say(page, answer);
+  await expect(page.locator('[data-verdict]')).toHaveAttribute(
+    'data-verdict-status',
+    'known'
+  );
+});
+
+test('after a miss the learner says what actually happened', async ({ page }) => {
+  await startSession(page);
+
+  await page.locator('[data-speak-answer]').click();
+  await say(page, 'משהו אחר');
+  await page.locator('[data-miss-knew]').click();
+  await expect(page.locator('[data-verdict]')).toHaveAttribute(
+    'data-verdict-status',
+    'known'
+  );
+  await expect.poll(async () => (await progressRows(page))[0]?.status).toBe('known');
+});
+
+test('a miss can also be admitted', async ({ page }) => {
+  await startSession(page);
+
+  await page.locator('[data-speak-answer]').click();
+  await say(page, 'משהו אחר');
+  await page.locator('[data-miss-didnt]').click();
   await expect(page.locator('[data-verdict]')).toHaveAttribute(
     'data-verdict-status',
     'unknown'
   );
-  await expect(page.locator('[data-verdict-heard]')).toContainText('משהו אחר');
   await expect.poll(async () => (await progressRows(page))[0]?.status).toBe('unknown');
-
-  await page.locator('[data-override="known"]').click();
-  await expect.poll(async () => (await progressRows(page))[0]?.status).toBe('known');
 });
 
-test('silence counts as not knowing it', async ({ page }) => {
+test('silence offers another go rather than failing the card', async ({ page }) => {
   await startSession(page);
   await page.locator('[data-speak-answer]').click();
   await saySilence(page);
 
+  await expect(page.locator('[data-speak-missed]')).toContainText('לא שמענו');
+  await expect(page.locator('[data-verdict]')).toHaveCount(0);
+
+  await page.locator('[data-miss-didnt]').click();
   await expect(page.locator('[data-verdict]')).toHaveAttribute(
     'data-verdict-status',
     'unknown'
   );
-  await expect(page.locator('[data-verdict-heard]')).toHaveText('לא שמענו כלום');
 });
 
 test('pronunciation practice never touches the schedule', async ({ page }) => {

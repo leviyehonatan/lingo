@@ -382,6 +382,30 @@ export function GuidedCard({
   const promptHu = promptIsHungarian(direction);
   const teaching = card.mode === 'teach' && stage === 'prompt';
 
+  // What the learner said when repeating a new word, so a miss can say what it
+  // heard and invite another go rather than silently doing nothing. Keyed by
+  // card id below, so a new card starts with a clean slate.
+  const [repeated, setRepeated] = useState<SpokenResult | null>(null);
+
+  /**
+   * A rejected utterance is not a failure to know the word: recognition is
+   * unreliable, especially in Hebrew, and the learner may well have said it
+   * right. Nothing is recorded until they say so.
+   */
+  const [missed, setMissed] = useState<SpokenResult | null>(null);
+
+  const handleSpeak = (result: SpokenResult) => {
+    setMissed(result.accepted ? null : result);
+    onSpeak(result);
+  };
+
+  const handleRepeat = (result: SpokenResult) => {
+    setRepeated(result);
+    onSpeakPractice(result);
+    // A good repetition is the whole of this step, so it moves on by itself.
+    if (result.accepted) onTaught();
+  };
+
   // Ears before mouth: the app says the Hungarian first, so the learner has
   // something to imitate rather than guessing from the spelling. Only when the
   // Hungarian is already on screen, so a review never leaks its own answer.
@@ -451,24 +475,43 @@ export function GuidedCard({
 
       {teaching && (
         <div className="mt-6 grid gap-3">
-          {canListen && (
-            <SpeakButton
-              expectedText={promptHu ? card.prompt : card.answer}
-              lang="hu-HU"
-              label={t.speakPractice}
-              hint={t.speakPracticeHint}
-              graded={false}
-              dataAttr="data-speak-practice"
-              onResult={onSpeakPractice}
-            />
+          {canListen ? (
+            <>
+              {/* Hearing a word teaches nothing on its own. Saying it back is
+                  the step, so it is the primary action and it moves the card on
+                  by itself when it lands. */}
+              <SpeakButton
+                key={card.id}
+                expectedText={promptHu ? card.prompt : card.answer}
+                lang="hu-HU"
+                label={t.teachRepeat}
+                hint={t.teachRepeatHint}
+                graded
+                dataAttr="data-teach-repeat"
+                onResult={handleRepeat}
+              />
+              {repeated && !repeated.accepted && (
+                <p data-teach-retry className="text-center text-xs text-amber-300">
+                  {t.teachRetry(repeated.heard)}
+                </p>
+              )}
+              <button
+                data-teach-got
+                onClick={onTaught}
+                className="rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-400 transition hover:border-slate-500"
+              >
+                {t.teachSkip}
+              </button>
+            </>
+          ) : (
+            <button
+              data-teach-got
+              onClick={onTaught}
+              className="rounded-xl bg-indigo-600 px-5 py-3 text-base font-semibold text-white transition hover:bg-indigo-500"
+            >
+              {t.teachGot}
+            </button>
           )}
-          <button
-            data-teach-got
-            onClick={onTaught}
-            className="rounded-xl bg-indigo-600 px-5 py-3 text-base font-semibold text-white transition hover:bg-indigo-500"
-          >
-            {t.teachGot}
-          </button>
         </div>
       )}
 
@@ -484,8 +527,38 @@ export function GuidedCard({
                 hint={t.speakAnswerHint}
                 graded
                 dataAttr="data-speak-answer"
-                onResult={onSpeak}
+                onResult={handleSpeak}
               />
+
+              {missed && (
+                <div
+                  data-speak-missed
+                  className="rounded-xl border border-amber-700/50 bg-amber-900/10 p-3"
+                >
+                  <p className="text-center text-xs text-amber-300">
+                    {t.teachRetry(missed.heard)}
+                  </p>
+                  <p className="mt-1 text-center text-[0.7rem] text-slate-500">
+                    {t.missRetryHint}
+                  </p>
+                  <div className="mt-3 flex flex-wrap justify-center gap-2">
+                    <button
+                      data-miss-knew
+                      onClick={() => onGrade('known')}
+                      className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-emerald-300 transition hover:border-emerald-500"
+                    >
+                      {t.missKnew}
+                    </button>
+                    <button
+                      data-miss-didnt
+                      onClick={() => onGrade('unknown')}
+                      className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-red-300 transition hover:border-red-500"
+                    >
+                      {t.missDidnt}
+                    </button>
+                  </div>
+                </div>
+              )}
               {/* Saying the word already on screen practises the mouth only, and
                   only makes sense for the language being learned. */}
               {promptHu && (
@@ -542,7 +615,11 @@ export function GuidedCard({
       {stage === 'feedback' &&
         answer &&
         (card.mode === 'teach' ? (
-          <Introduced answer={answer} onNext={onNext} />
+          <Introduced
+            answer={answer}
+            spokeWell={repeated?.accepted ?? false}
+            onNext={onNext}
+          />
         ) : (
           <Verdict
             answer={answer}
@@ -561,13 +638,20 @@ export function GuidedCard({
  */
 function Introduced({
   answer,
+  spokeWell,
   onNext,
 }: {
   answer: SessionAnswer;
+  spokeWell: boolean;
   onNext: () => void;
 }) {
   return (
     <div className="mt-6 rounded-xl border border-slate-700 bg-slate-800/60 p-4">
+      {spokeWell && (
+        <p data-teach-spoke className="mb-1 text-center text-xs text-emerald-300">
+          {t.teachSpokeWell}
+        </p>
+      )}
       <p data-introduced className="text-center text-sm font-medium text-indigo-200">
         {t.teachRecorded}
       </p>
@@ -649,6 +733,10 @@ function Verdict({
           </button>
         ))}
       </div>
+
+      <p className="mt-2 text-center text-[0.7rem] text-slate-600">
+        {t.overrideHint}
+      </p>
 
       <button
         data-session-next

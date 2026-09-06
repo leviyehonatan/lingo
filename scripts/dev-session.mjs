@@ -47,7 +47,29 @@ if (flags.headless) {
 await assertServerIsUp(origin);
 
 const { chromium } = await import('@playwright/test');
-const browser = await chromium.launch({ headless: false, args: ['--window-size=1150,950'] });
+
+/**
+ * The real Chrome, not the bundled Chromium: speech recognition talks to
+ * Google's service and only works in a branded build, and the two speech
+ * features are most of what there is to try.
+ *
+ * Playwright also mutes audio by default, which silences the app reading words
+ * aloud, so that default is dropped.
+ */
+const launchOptions = {
+  headless: false,
+  args: ['--window-size=1150,950'],
+  ignoreDefaultArgs: ['--mute-audio'],
+};
+
+let browser;
+try {
+  browser = await chromium.launch({ ...launchOptions, channel: 'chrome' });
+} catch {
+  console.warn('Google Chrome not found; falling back to bundled Chromium.');
+  console.warn('Speech recognition will not work there, though playback will.');
+  browser = await chromium.launch(launchOptions);
+}
 const context = await browser.newContext({
   viewport: null,
   storageState: {

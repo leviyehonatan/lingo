@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { STUDY_URL } from './fixtures';
-import { disableSpeech } from './speech';
+import { disableSpeech, fakeSpeech, say } from './speech';
 
 /**
  * A learner cannot say a word they have never met, so the session teaches
@@ -118,6 +118,7 @@ test('says the Hungarian aloud when it is on screen, and never leaks an answer',
       configurable: true,
       value: {
         cancel() {},
+        getVoices: () => [],
         speak(utterance: { text: string }) {
           (window as never as { __spoke: (t: string) => void }).__spoke(utterance.text);
         },
@@ -144,8 +145,37 @@ test('says the Hungarian aloud when it is on screen, and never leaks an answer',
   await expect.poll(() => spoken.length).toBeGreaterThan(0);
   expect(new Set(spoken)).toEqual(new Set([shown]));
 
+  // The replay button used to do nothing, because Chrome drops an utterance
+  // queued in the same tick as the cancel that precedes it.
   const before = spoken.length;
   await page.locator('[data-speak]').click();
   await expect.poll(() => spoken.length).toBeGreaterThan(before);
+  await page.locator('[data-speak]').click();
+  await expect.poll(() => spoken.length).toBeGreaterThan(before + 1);
   expect(new Set(spoken)).toEqual(new Set([shown]));
+});
+
+test('teaching asks the learner to say the word, not just to click past it', async ({
+  page,
+}) => {
+  await fakeSpeech(page);
+  await page.goto(STUDY_URL);
+  await page.locator('[data-session-start]').click();
+  const shown = (await page.locator('[data-card-prompt]').innerText()).trim();
+
+  // The repetition is the step; clicking past it is the secondary way out.
+  await expect(page.locator('[data-teach-repeat]')).toBeVisible();
+  await expect(page.locator('[data-teach-got]')).toContainText('להמשיך בלי לומר');
+
+  // A miss says what it heard and leaves the learner on the card to try again.
+  await page.locator('[data-teach-repeat]').click();
+  await say(page, 'valami más');
+  await expect(page.locator('[data-teach-retry]')).toContainText('valami más');
+  await expect(page.locator('[data-introduced]')).toHaveCount(0);
+
+  // Saying it is what moves the card on.
+  await page.locator('[data-teach-repeat]').click();
+  await say(page, shown);
+  await expect(page.locator('[data-teach-spoke]')).toBeVisible();
+  await expect(page.locator('[data-introduced]')).toBeVisible();
 });
