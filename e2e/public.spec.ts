@@ -25,9 +25,13 @@ test.describe('public pages', () => {
     await expect(page.getByRole('heading', { level: 1 })).toContainText('הונגרית');
 
     // The seed upserts exactly the topics in src/data, so the page must show
-    // every one of them and nothing else.
-    const topicLinks = page.locator(`a[href^="/${PAIR}/study/"]`);
+    // every one of them and nothing else. `study/all` is not a topic — it is
+    // the whole vocabulary, offered above the themed lists.
+    const topicLinks = page
+      .locator(`a[href^="/${PAIR}/study/"]`)
+      .and(page.locator(`a:not([href="/${PAIR}/study/all"])`));
     await expect(topicLinks).toHaveCount(TOPIC_COUNT);
+    await expect(page.locator(`a[href="/${PAIR}/study/all"]`)).toBeVisible();
 
     const greetings = page.locator(`a[href="${STUDY_URL}"]`);
     await expect(greetings).toBeVisible();

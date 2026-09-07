@@ -33,23 +33,19 @@ carry, read it there and fold the conclusion back into these files.
 
 ## Where to start next (written 2026-09-07)
 
-Decisions D1–D22 are settled and shipped. Three proposals remain, and none of
-them is picked yet. What the next session needs to know:
+Decisions D1–D23 are settled and shipped. Two proposals remain, both blocked on
+content rather than code:
 
-**P8 — which topic to offer first.** D22 orders new words by frequency inside
-a topic, which was the half of P5 the plan could do on its own. The remaining
-argument — the commonest words first regardless of theme — is a routing
-question: `/[pair]/study/[topic]` assumes the topic is the unit of study, and
-`planSession` never sees more than one topic's words. Decide what replaces the
-topic picker before touching `src/lib/plan.ts` again.
+**P4 — minimal-pairs ear trainer.** The method's first stage, which we skip
+entirely. Needs real recordings, not synthesis: one engine producing both
+members of a pair gives them the same idiosyncrasies, so the discrimination
+task is not the one the learner needs to pass. Wikimedia Commons has Hungarian
+pronunciation files (~13KB each, mostly CC BY-SA). Sourcing before code.
 
-**P4 — minimal-pairs ear trainer.** Needs real recordings; Wikimedia Commons
-has Hungarian pronunciation files (~13KB each, mostly CC BY-SA). Content
-sourcing before code.
+**P3 — example sentences.** The method's own next step after single words, for
+925 words. Writing or sourcing, then a card type to show them on.
 
-**P3 — example sentences.** Content work for 925 words. Nothing decided.
-
-**Frequency data.** `src/data/frequency.ts` is generated, not hand-edited. After
+**Generated data.** `src/data/frequency.ts` is generated, not hand-edited. After
 adding vocabulary, re-run
 `npx tsx --tsconfig tsconfig.json scripts/build-frequency.ts` (it fetches the
 source list; pass a local path to work offline). The source list itself is

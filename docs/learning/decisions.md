@@ -446,8 +446,25 @@ hardest half. 828 of our 925 entries rank; the other 97 keep their curated
 order, placed after the ranked ones — we would rather delay a word we cannot
 vouch for than lead with it.
 
-Ordering is *within* a topic only. Which topic to study is still the learner's
-choice; see P8.
+Ordering was *within* a topic only when this landed; D23 pooled the topics so
+that it means the commonest words in the language, not in a theme.
+
+### D23 — The whole vocabulary is the offered path; a topic is a drill (2026-09-07)
+
+P8. D22 ordered new words by frequency, but only among the words the screen was
+already holding — one topic's list — so it delivered "the commonest words in
+this theme", which is not the method's claim. The theme itself is also the
+interference pattern the book warns about.
+
+The pair page now offers one path first: everything, commonest first. It is a
+synthetic topic id, `all`, resolved in the page rather than in the data
+(`src/lib/everything.ts`), so the `/[pair]/study/[topic]` route, the API and the
+schema are all untouched — the plan simply sees 925 words instead of 25, and
+D22 and D16 do the rest. A word appearing in two topics is pooled once.
+
+Topics stay, listed below it: drilling a set on purpose is a real thing to want,
+and it is the only way to study a theme before you have earned it by frequency.
+What changed is that it is no longer the only way in.
 
 ## Proposed, not yet decided
 
@@ -465,12 +482,5 @@ same idiosyncrasies, so the discrimination task is not the one the learner needs
 to pass. This is the one place real recordings are worth harvesting, and D18
 records where they are.
 
-### P8 — Which topic to offer first
 
-D22 orders words inside a topic. The method's stronger claim is that the
-*first* words you learn should be the commonest ones you will meet, whatever
-theme they belong to — which is an argument for ordering topics too, or for
-dropping the topic as the unit of study. The `/[pair]/study/[topic]` route
-assumes the topic, so this is a routing and navigation change, not a plan
-change. Nothing decided.
 
