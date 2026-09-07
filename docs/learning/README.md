@@ -30,3 +30,33 @@ copyrighted and this repository is public. The owner's epub and a plain-text
 extraction of its chapters are kept locally at `~/dev/lingo-reference/fluent-forever/`,
 outside every git working tree. If a question needs detail these capsules do not
 carry, read it there and fold the conclusion back into these files.
+
+## Where to start next (written 2026-09-07)
+
+Decisions D1–D21 are settled and shipped. Three proposals remain, and the
+owner has asked for P5 first. What the next session needs to know:
+
+**P5 — frequency ordering.** The blocker is data, not code. `planSession` in
+`src/lib/plan.ts` already picks fresh words in list order and keeps confusable
+ones apart (D16); ordering that list by frequency is the whole change. What is
+missing is a Hungarian frequency list we may ship. Candidates to check, in
+order: the OpenSubtitles-derived lists in `hermitdave/FrequencyWords` on GitHub
+(CC-BY-SA 4.0, `hu/hu_50k.txt`, one `word count` per line), and the Hungarian
+Webcorpus. Match on the headword; our entries are lemmas or short phrases
+(`jó napot`, `nem értem`), so a phrase should take its rarest word's rank.
+Do not add a database column for it: a rank map in `src/data/` derived from
+the list at build time keeps it out of the schema, which the owner wants
+left alone (see the no-migration decision). Then decide whether frequency
+orders *within* a topic only, or also which topic is offered first; the method
+argues for the second, the current URL structure assumes the first.
+
+**P4 — minimal-pairs ear trainer.** Needs real recordings; Wikimedia Commons
+has Hungarian pronunciation files (~13KB each, mostly CC BY-SA). Content
+sourcing before code.
+
+**P3 — example sentences.** Content work for 925 words. Nothing decided.
+
+**Working state.** `DATABASE_URL=… npm run dev` signs you in by itself. The
+deploy never runs migrations: after merging a PR that adds one, run the
+**Init DB** workflow (Actions tab). CI runs e2e once per tree. Read
+`~/dev/infra/docs/HANDOFF.md` before touching the server.
