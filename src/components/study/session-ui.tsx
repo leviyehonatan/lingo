@@ -33,6 +33,7 @@ import type {
 } from '@/lib/session';
 import { SpeakButton, type SpokenResult } from '@/components/study/modes';
 import { formatDelay, he as t } from '@/i18n/translations';
+import { toHebrew, toIpa } from '@/lib/transcribe';
 
 export type Direction = 'forward' | 'reverse';
 export type Activity = 'cards' | 'quiz' | 'writing';
@@ -713,6 +714,7 @@ export function GuidedCard({
         >
           {card.prompt}
         </span>
+        {promptHu && <Transcription hungarian={card.prompt} />}
         {hungarianOnScreen && (
           <button
             data-speak
@@ -738,6 +740,7 @@ export function GuidedCard({
             >
               {card.answer}
             </span>
+            {!promptHu && <Transcription hungarian={card.answer} />}
           </>
         )}
       </div>
@@ -973,6 +976,24 @@ export function GuidedCard({
  * What a learner sees after meeting a word. No grade and no correction row:
  * they were not asked anything, so there is nothing to have got wrong.
  */
+/**
+ * How the Hungarian sounds, for a reader who would otherwise say the letters
+ * the Hebrew way. The Hebrew line is what to say; the IPA line is exact, for
+ * the vowels Hebrew cannot write.
+ */
+function Transcription({ hungarian }: { hungarian: string }) {
+  return (
+    <span data-transcription className="mt-2 block text-sm text-slate-400">
+      <span data-transcription-hebrew dir="rtl" className="block" title={t.transcriptionTitle}>
+        {toHebrew(hungarian)}
+      </span>
+      <span data-transcription-ipa dir="ltr" className="mt-0.5 block text-xs text-slate-500">
+        {toIpa(hungarian)}
+      </span>
+    </span>
+  );
+}
+
 function Introduced({
   card,
   promptHu,
