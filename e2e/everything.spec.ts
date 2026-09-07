@@ -42,3 +42,23 @@ test('introduces the commonest word in the whole vocabulary first', async ({ pag
 
   expect([first!.hungarian, first!.hebrew]).toContain(await promptWord(page));
 });
+
+test('shows the new word in a sentence, and never on a recall card', async ({ page }) => {
+  await page.goto(ALL_URL);
+  await page.locator('[data-session-start]').click();
+  await expect(page.locator('[data-flashcard]')).toBeVisible();
+
+  // The commonest word in the vocabulary is `nem`, which has an example.
+  await expect(page.locator('[data-teach-badge]')).toBeVisible();
+  await expect(page.locator('[data-example-hu]')).toHaveText('Nem tudom.');
+
+  // Walk to the first card that asks for something back. The sentence carries
+  // the answer, so it must be gone by then.
+  for (let i = 0; i < 20; i += 1) {
+    if ((await page.locator('[data-teach-badge]').count()) === 0) break;
+    await page.locator('[data-teach-got]').click();
+    await expect(page.locator('[data-flashcard]')).toBeVisible();
+  }
+  await expect(page.locator('[data-teach-badge]')).toHaveCount(0);
+  await expect(page.locator('[data-example]')).toHaveCount(0);
+});

@@ -34,6 +34,7 @@ import type {
 import { SpeakButton, type SpokenResult } from '@/components/study/modes';
 import { formatDelay, he as t } from '@/i18n/translations';
 import { toHebrew, toIpa } from '@/lib/transcribe';
+import { exampleFor } from '@/lib/sentences';
 
 export type Direction = 'forward' | 'reverse';
 export type Activity = 'cards' | 'quiz' | 'writing';
@@ -743,6 +744,9 @@ export function GuidedCard({
             {!promptHu && <Transcription hungarian={card.answer} />}
           </>
         )}
+        {/* Only while teaching: on a recall card the sentence would carry the
+            answer, and the recall is the whole point of the card. */}
+        {teaching && <ExampleSentence wordId={card.id} />}
       </div>
 
       {asking && hinted && <AnswerHint answer={card.answer} rtl={!promptHu} />}
@@ -981,6 +985,29 @@ export function GuidedCard({
  * the Hebrew way. The Hebrew line is what to say; the IPA line is exact, for
  * the vowels Hebrew cannot write.
  */
+/**
+ * The word in use. A pair of translations is not yet a meaning: it is the
+ * sentence that says which of two homographs we mean, and what the word does
+ * in a clause. Absent for most words so far — see P3 in the decision log.
+ */
+function ExampleSentence({ wordId }: { wordId: string }) {
+  const example = exampleFor(wordId);
+  if (!example) return null;
+  return (
+    <span data-example className="mt-5 block border-t border-slate-700/70 pt-4">
+      <span className="mb-1 block text-[0.7rem] uppercase tracking-wide text-slate-500">
+        {t.exampleTitle}
+      </span>
+      <span data-example-hu dir="ltr" className="block text-base text-slate-200">
+        {example.hu}
+      </span>
+      <span data-example-he dir="rtl" className="mt-0.5 block text-sm text-slate-400">
+        {example.he}
+      </span>
+    </span>
+  );
+}
+
 function Transcription({ hungarian }: { hungarian: string }) {
   return (
     <span data-transcription className="mt-2 block text-sm text-slate-400">
