@@ -10,6 +10,7 @@
  * asked for once it has been met.
  */
 
+import { byFrequency } from './frequency';
 import { isDue } from './progress';
 import type { ProgressByWord } from './study';
 
@@ -48,6 +49,12 @@ export interface PlanOptions {
    * pool cannot.
    */
   confusable?: (a: string, b: string) => boolean;
+  /**
+   * Order the words not yet met, most worth learning first. Defaults to
+   * frequency; pass a different comparator, or `null` to keep the curated
+   * order of `wordIds`.
+   */
+  orderFresh?: ((ids: readonly string[]) => string[]) | null;
 }
 
 /**
@@ -59,7 +66,7 @@ function hasBeenMet(byWord: ProgressByWord, id: string): boolean {
 }
 
 /**
- * Reviews first, oldest due first, then new words in the order given.
+ * Reviews first, oldest due first, then new words, commonest first.
  *
  * Reviews come first because they are the ones about to be forgotten, and
  * because meeting new words is the reward for clearing them rather than a way
@@ -71,7 +78,11 @@ export function planSession(options: PlanOptions): SessionPlan {
   const due = met
     .filter((id) => isDue(byWord[id]?.nextReview, now))
     .sort((a, b) => (byWord[a]?.nextReview ?? 0) - (byWord[b]?.nextReview ?? 0));
-  const fresh = wordIds.filter((id) => !hasBeenMet(byWord, id));
+  const unmet = wordIds.filter((id) => !hasBeenMet(byWord, id));
+  // The commonest words first: a sitting is short, and what it spends its new
+  // slots on is the whole of what frequency ordering decides.
+  const order = options.orderFresh === undefined ? byFrequency : options.orderFresh;
+  const fresh = order ? order(unmet) : unmet;
 
   const cards: PlannedCard[] = due
     .slice(0, size)

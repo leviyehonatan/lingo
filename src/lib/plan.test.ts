@@ -169,3 +169,29 @@ describe('words that look alike are not met together', () => {
     expect(plan.cards).toHaveLength(2);
   });
 });
+
+describe('planSession word order', () => {
+  it('introduces the commonest word first, not the first on the list', () => {
+    // `viszontlátásra` sits before `nem` in the curated greetings list.
+    const plan = planSession({
+      wordIds: ['a1-g-6', 'a1-g-2'],
+      byWord: {},
+      now: 0,
+      newLimit: 1,
+      size: 10,
+    });
+    expect(plan.cards).toEqual([{ id: 'a1-g-2', mode: 'teach' }]);
+  });
+
+  it('keeps the curated order when ordering is turned off', () => {
+    const plan = planSession({
+      wordIds: ['a1-g-6', 'a1-g-2'],
+      byWord: {},
+      now: 0,
+      newLimit: 1,
+      size: 10,
+      orderFresh: null,
+    });
+    expect(plan.cards).toEqual([{ id: 'a1-g-6', mode: 'teach' }]);
+  });
+});
