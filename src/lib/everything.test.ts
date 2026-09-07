@@ -37,6 +37,40 @@ describe('everythingTopic', () => {
     expect(pooled.words.map((w) => w.id)).toEqual(['w1', 'w2', 'w3']);
   });
 
+  it('drops a word listed twice for the same meaning, keeping the first', () => {
+    const pooled = everythingTopic([
+      {
+        id: 'A1',
+        name: 'A1',
+        nameHe: 'A1',
+        sourceLang: 'hu',
+        targetLang: 'he',
+        topics: [
+          { id: 'adj', name: 'adj', nameHe: 'adj', words: [{ id: 'w1', hungarian: 'boldog', hebrew: 'שמח' }] },
+          { id: 'feelings', name: 'f', nameHe: 'f', words: [{ id: 'w2', hungarian: 'boldog', hebrew: 'שמח' }] },
+        ],
+      },
+    ]);
+    expect(pooled.words.map((w) => w.id)).toEqual(['w1']);
+  });
+
+  it('keeps a word listed twice for two different meanings', () => {
+    const pooled = everythingTopic([
+      {
+        id: 'A1',
+        name: 'A1',
+        nameHe: 'A1',
+        sourceLang: 'hu',
+        targetLang: 'he',
+        topics: [
+          { id: 'time', name: 't', nameHe: 't', words: [{ id: 'w1', hungarian: 'nap', hebrew: 'יום' }] },
+          { id: 'weather', name: 'w', nameHe: 'w', words: [{ id: 'w2', hungarian: 'nap', hebrew: 'שמש' }] },
+        ],
+      },
+    ]);
+    expect(pooled.words.map((w) => w.id)).toEqual(['w1', 'w2']);
+  });
+
   it('is empty, not broken, when there is no vocabulary yet', () => {
     expect(everythingTopic([]).words).toEqual([]);
   });

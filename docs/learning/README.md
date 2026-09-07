@@ -33,22 +33,22 @@ carry, read it there and fold the conclusion back into these files.
 
 ## Where to start next (written 2026-09-07)
 
-Decisions D1–D24 are settled. Three proposals remain:
+Decisions D1–D25 are settled. Three proposals remain, and the first one is not
+code:
 
-**P9 — ranks are blind to sense.** The cheapest real win, and the one with a
-known answer. Our `hát` means "back" but ranks as the discourse particle; `fog`
-means "tooth" but ranks as the future auxiliary; `nap` exists twice, as "day"
-and as "sun". Hand-set a rank on the handful of entries whose sense is not the
-common one, in the generator rather than the generated file.
-
-**P3 — the other 885 example sentences.** D24 shipped the card and the first
-forty. The next step is a native speaker reading those forty, not writing more.
+**P3 — the sentences need a native speaker.** D24 shipped the card and the
+first forty-five example sentences, written for this app and reviewed by
+nobody. Have them read before writing the other 880.
 
 **P4 — minimal-pairs ear trainer.** The method's first stage, which we skip
 entirely. Needs real recordings, not synthesis: one engine producing both
 members of a pair gives them the same idiosyncrasies, so the discrimination
 task is not the one the learner needs to pass. Wikimedia Commons has Hungarian
 pronunciation files (~13KB each, mostly CC BY-SA). Sourcing before code.
+
+**P10 — a frequency source that knows about senses.** D25 declines to rank 126
+entries rather than rank them wrongly, which parks genuinely common words like
+`nap` and `hét` at the back. Only worth fixing if that turns out to hurt in use.
 
 **Generated data.** `src/data/frequency.ts` is generated, not hand-edited. After
 adding vocabulary, re-run

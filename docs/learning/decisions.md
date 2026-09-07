@@ -489,6 +489,36 @@ frequency list as the discourse particle and the future auxiliary, while our
 entries mean "back" and "tooth"; the sentence is what tells the learner which
 word they are being taught. See P9.
 
+### D25 — A rank we cannot trust is not recorded (2026-09-07)
+
+P9, found while writing D24's sentences. The frequency list counts wordforms,
+not senses, so some of our ranks were evidence about a different word: `hát`
+ranked 66 as the discourse particle "well…" rather than the back, `fog` ranked
+80 as the future auxiliary rather than the tooth. Both were being introduced in
+a learner's first sitting on the strength of a word they were not being taught.
+
+Two rules now, both in the generator:
+
+- A headword our data uses for **two different meanings** — `hét` for "seven"
+  and "week", `fél` for "half" and "afraid", `nap` for "day" and "sun" — takes
+  no rank. The count belongs to both at once and we cannot say in what
+  proportion.
+- A short hand-written list covers forms whose count is dominated by a word we
+  do not teach at all (`hát`, `fog`, `ég`, `ok`, `hat`, `keres`). It is not
+  exhaustive; add to it when another turns up.
+
+Unranked is not a penalty: those words keep their curated position, after the
+ranked ones. The cost is real and accepted — "day" is genuinely common and now
+waits — but a wrong order is worse than a missing one, and the alternative is
+inventing numbers. 799 of 925 entries now rank, down from 828.
+
+Separately, the pool that D23 introduced now drops a word listed twice for the
+**same** meaning: `boldog` appears under adjectives and again under feelings,
+`tanár` under jobs and again under school, eleven of these in all. The first
+listing wins, which keeps the easier level's copy. Two entries for two
+different meanings both survive — `nap` is the day and the sun, and each has to
+be learned.
+
 ## Proposed, not yet decided
 
 ### P3 — Example sentences for the rest of the vocabulary
@@ -497,19 +527,14 @@ D24 shipped the card and the first forty sentences. What remains is the other
 885, and the native-speaker review that should come before any of them are
 trusted. Content work, not code.
 
-### P9 — Ranks are blind to which word they are ranking
+### P10 — A frequency source that knows about senses
 
-The frequency list counts word*forms*, not senses, so a rank can belong to a
-different word than ours: `hát` ranks 66 as "well…", not as "back", and `fog`
-ranks 80 as the future auxiliary, not as "tooth". Both are consequently
-introduced far earlier than they deserve. `nap` is worse — we have two entries
-for it, "day" and "sun", and the learner meets the same string twice.
-
-D24's sentences make the *display* honest about which word is meant, but the
-*order* is still wrong. A fix would need either a part-of-speech-tagged
-frequency source, or a hand-set rank on the entries where our sense is not the
-common one. The second is small and boring and probably right. Nothing
-decided.
+D25 handles sense-blindness by declining to rank: 126 entries now carry no
+frequency at all, including genuinely common words like `nap` and `hét`. A
+lemmatised, part-of-speech-tagged Hungarian corpus would let those words take
+the rank they deserve instead of waiting at the back. The Hungarian Webcorpus
+is the obvious candidate. Worth doing only if the missing 126 turn out to
+matter in use.
 
 ### P4 — A minimal-pairs ear trainer before vocabulary
 
