@@ -132,6 +132,11 @@ Honest gap list, so nobody assumes the app already implements the above.
   kept out of the same sitting (D16). Themed topics remain as a deliberate
   drill rather than the only way in. What is still missing is a *reason* the
   set is 925 words: they are our own list, not the book's 625 picturable ones.
+  The ranks are also blind to sense, so a homograph can be introduced far
+  earlier than its meaning deserves (P9).
+- **Words are met in a sentence only for the first forty.** D24 shows the word
+  in use while teaching it, which is the method's step after single words; the
+  other 885 still arrive as a bare pair of translations (P3).
 - **The rungs are the same for everyone.** A word's interval now follows its
   own run of recalls and is bent by its own lapses and answer times (D15), but
   the ladder itself is fixed and nothing reads how a learner is doing overall,

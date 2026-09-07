@@ -466,13 +466,50 @@ Topics stay, listed below it: drilling a set on purpose is a real thing to want,
 and it is the only way to study a theme before you have earned it by frequency.
 What changed is that it is no longer the only way in.
 
+### D24 — A new word is shown in a sentence (2026-09-07)
+
+The first half of P3. A pair of translations is not yet a meaning, and the
+method's own next step after a single word is the word in use. Every teaching
+card now carries one short example sentence, Hungarian above Hebrew, under the
+answer.
+
+Only while teaching. On a recall card the sentence would carry the answer, and
+the recall is the whole point of the card.
+
+Coverage is partial and stays that way for now: `src/data/sentences.ts` covers
+the forty words a learner actually meets first by frequency (D22, D23), and a
+word with no sentence shows none rather than an empty row. A test enforces that
+the gap is at the *end* of the frequency order, not the start.
+
+Two caveats worth writing down. The sentences are written for this app and
+**have not been reviewed by a native speaker** — that review is what stands
+between this and the remaining 885 words. And they turned out to do a second
+job nobody planned: they disambiguate. `hát` and `fog` are ranked by the
+frequency list as the discourse particle and the future auxiliary, while our
+entries mean "back" and "tooth"; the sentence is what tells the learner which
+word they are being taught. See P9.
+
 ## Proposed, not yet decided
 
-### P3 — Example sentences
+### P3 — Example sentences for the rest of the vocabulary
 
-What is left of this item after D18 and D21. Example sentences are the
-method's own next step after single words, and would need writing, or
-sourcing, for 925 words: content work, not code. Nothing decided.
+D24 shipped the card and the first forty sentences. What remains is the other
+885, and the native-speaker review that should come before any of them are
+trusted. Content work, not code.
+
+### P9 — Ranks are blind to which word they are ranking
+
+The frequency list counts word*forms*, not senses, so a rank can belong to a
+different word than ours: `hát` ranks 66 as "well…", not as "back", and `fog`
+ranks 80 as the future auxiliary, not as "tooth". Both are consequently
+introduced far earlier than they deserve. `nap` is worse — we have two entries
+for it, "day" and "sun", and the learner meets the same string twice.
+
+D24's sentences make the *display* honest about which word is meant, but the
+*order* is still wrong. A fix would need either a part-of-speech-tagged
+frequency source, or a hand-set rank on the entries where our sense is not the
+common one. The second is small and boring and probably right. Nothing
+decided.
 
 ### P4 — A minimal-pairs ear trainer before vocabulary
 
