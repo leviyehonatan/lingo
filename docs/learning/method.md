@@ -121,9 +121,9 @@ Honest gap list, so nobody assumes the app already implements the above.
 
 - **Our cards are translation pairs.** A Hungarian string on one side, a Hebrew
   string on the other, which is the model the book argues against. The app reads
-  the Hungarian aloud, so the sound is there, but there is no image, no phonetic
-  transcription and no personal hook. Images are deliberately not coming; see
-  D18 in `decisions.md`.
+  the Hungarian aloud and writes how it sounds (D21), so the sound is there,
+  but there is no image and no personal hook. Images are deliberately not
+  coming; see D18 in `decisions.md`.
 - **We have no sound-first stage at all.** No minimal-pair trainer, no recordings,
   no articulation help. The app currently starts where the book says to start
   second.

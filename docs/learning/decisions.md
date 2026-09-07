@@ -411,16 +411,29 @@ rewrites them.
 The deck filter, the setup counts and the learner stats lost their middle
 column with it.
 
+### D21 — Every Hungarian word is written the way it sounds (2026-09-07)
+
+The transcription half of P3. The method wants a learner to hear a word
+before reading it, because spelling contaminates the sound; a Hebrew reader
+meeting `sz` and `s` will get both wrong from the letters alone. Hungarian
+spelling is shallow, so the sound follows from the letters by rule: a
+handful of digraphs, short and long vowels, doubled consonants held long,
+and stress always on the first syllable. `src/lib/transcribe.ts` does it
+without a dictionary, for every word, with no data to author.
+
+Two lines appear under the Hungarian wherever it is on screen. The first is
+Hebrew letters with vowel points, which a Hebrew reader says without
+learning anything; it is an approximation where Hebrew has no such sound
+(ö and ü come out as e and i). The second is IPA, which is exact. Recordings
+would still be better, and are still P4's problem.
+
 ## Proposed, not yet decided
 
-### P3 — Cards carry more than two strings
+### P3 — Example sentences
 
-Images are decided against (D18) and audio is handled by the browser, so what is
-left of this item is a phonetic transcription, which the method says stops a
-learner producing a spelling-contaminated sound. Hungarian spelling is shallow
-enough that the book itself says recordings will do, so this is low priority.
-Example sentences would be the more valuable addition, and are the method's own
-next step after single words.
+What is left of this item after D18 and D21. Example sentences are the
+method's own next step after single words, and would need writing, or
+sourcing, for 925 words: content work, not code. Nothing decided.
 
 ### P4 — A minimal-pairs ear trainer before vocabulary
 

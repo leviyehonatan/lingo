@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { STUDY_URL, TOPIC_ID } from './fixtures';
 import { disableSpeech, fakeSpeech, say } from './speech';
 import { promptWord, seedWord, words } from './session';
+import { toHebrew, toIpa } from '../src/lib/transcribe';
 
 /**
  * A learner cannot say a word they have never met, so the session teaches
@@ -45,6 +46,10 @@ test('teaches a word it has never asked about, instead of testing it', async ({ 
   await expect(page.locator('[data-card-answer]')).toBeVisible();
   // And the app offers to say it, having already said it once.
   await expect(page.locator('[data-speak]')).toBeVisible();
+  // And writes how it sounds, in letters a Hebrew reader can say, and in IPA.
+  const shown = (await page.locator('[data-card-prompt]').innerText()).trim();
+  await expect(page.locator('[data-transcription-hebrew]')).toHaveText(toHebrew(shown));
+  await expect(page.locator('[data-transcription-ipa]')).toHaveText(toIpa(shown));
   await expect(page.locator('[data-session-reveal]')).toHaveCount(0);
   await expect(page.locator('[data-grade="known"]')).toHaveCount(0);
 });
