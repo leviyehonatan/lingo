@@ -129,7 +129,7 @@ describe('PUT /api/progress/[wordId]', () => {
   });
 
   it('scopes the lookup to the signed-in user and the routed word', async () => {
-    await put({ status: 'learning' }, 'a1-colors-3');
+    await put({ status: 'known' }, 'a1-colors-3');
     expect(prisma.wordProgress.findUnique).toHaveBeenCalledWith({
       where: { wordId_userId: { wordId: 'a1-colors-3', userId: 'user-1' } },
       select: {
@@ -261,7 +261,7 @@ describe('PUT /api/progress/[wordId] telemetry', () => {
       reviewCount: 1,
       seenCount: 1,
       lapses: 0,
-      status: 'learning',
+      status: 'unknown',
     });
 
     await put({ status: 'unknown', ...telemetry });
@@ -303,18 +303,9 @@ describe('PUT /api/progress/[wordId] streaks', () => {
     expect(await res.json()).toEqual({ nextReview: NOW + DAY, intervalMs: DAY });
   });
 
-  it('holds position for a half recall', async () => {
-    prisma.wordProgress.findUnique.mockResolvedValue({
-      reviewCount: 4,
-      seenCount: 4,
-      lapses: 0,
-      status: 'known',
-      streak: 3,
-      previousStreak: 2,
-    });
-
-    await put({ status: 'learning' });
-    expect(prisma.wordProgress.upsert.mock.calls[0][0].update.streak).toBe(3);
+  it('rejects the middle grade that used to exist', async () => {
+    const res = await put({ status: 'learning' });
+    expect(res.status).toBe(400);
   });
 
   it('does not let a correction count as another success', async () => {
@@ -361,7 +352,7 @@ describe('PUT /api/progress/[wordId] adapts to what the log knows', () => {
       reviewCount: 6,
       seenCount: 6,
       lapses: 2,
-      status: 'learning',
+      status: 'known',
       streak: 2,
       previousStreak: 1,
     });

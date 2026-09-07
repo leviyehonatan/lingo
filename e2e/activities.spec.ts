@@ -71,7 +71,7 @@ test('writing accepts the answer and records the word it asked about', async ({ 
 
   await expect(page.locator('[data-verdict]')).toHaveAttribute(
     'data-verdict-status',
-    'learning'
+    'known'
   );
   await expect(page.locator('[data-card-answer]')).toBeVisible();
   await expect.poll(() => reviewedTwice(page)).toEqual([await idFor(page, asked)]);

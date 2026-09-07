@@ -4,7 +4,7 @@
 
 import { isDue, type WordStatus } from './progress';
 
-export type FilterMode = 'all' | 'unknown' | 'learning' | 'known' | 'due';
+export type FilterMode = 'all' | 'unknown' | 'known' | 'due';
 
 export interface WordProgressState {
   status: WordStatus;
@@ -15,7 +15,6 @@ export type ProgressByWord = Record<string, WordProgressState | undefined>;
 
 export interface StudyStats {
   known: number;
-  learning: number;
   unknown: number;
 }
 
@@ -60,13 +59,11 @@ export function computeStats(
   byWord: ProgressByWord,
   now: number
 ): StudyStats {
-  const stats: StudyStats = { known: 0, learning: 0, unknown: 0 };
+  const stats: StudyStats = { known: 0, unknown: 0 };
   for (const id of wordIds) {
     const entry = byWord[id];
     if (!entry || entry.status === 'unknown' || entry.nextReview <= now) {
       stats.unknown++;
-    } else if (entry.status === 'learning') {
-      stats.learning++;
     } else if (entry.status === 'known') {
       stats.known++;
     }

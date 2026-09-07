@@ -7,7 +7,7 @@ const DAY = 24 * 60 * 60 * 1000;
 const standings: WordStanding[] = [
   { status: 'known', seenCount: 4, lapses: 0 },
   { status: 'known', seenCount: 6, lapses: 2 },
-  { status: 'learning', seenCount: 2, lapses: 0 },
+  { status: 'unknown', seenCount: 2, lapses: 0 },
   { status: 'unknown', seenCount: 1, lapses: 0 },
 ];
 
@@ -26,14 +26,14 @@ function review(over: Partial<ReviewRecord> = {}): ReviewRecord {
 describe('summarize', () => {
   it('counts where the words stand', () => {
     const stats = summarize(standings, [], NOW);
-    expect(stats).toMatchObject({ met: 4, known: 2, learning: 1, shaky: 1 });
+    expect(stats).toMatchObject({ met: 4, known: 2, shaky: 1 });
   });
 
   it('measures accuracy over answers, not over introductions', () => {
     const stats = summarize(standings, [
       review(),
       review({ status: 'unknown' }),
-      review({ mode: 'teach', status: 'learning' }),
+      review({ mode: 'teach', status: 'unknown' }),
     ], NOW);
 
     expect(stats.reviews).toBe(2);
@@ -87,7 +87,6 @@ describe('summarize', () => {
     expect(summarize([], [], NOW)).toEqual({
       met: 0,
       known: 0,
-      learning: 0,
       shaky: 0,
       reviews: 0,
       accuracy: null,

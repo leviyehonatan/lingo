@@ -389,14 +389,29 @@ same schedule, self-grading in place of a spoken answer. What was missing was
 telling those learners what would work, so the notice now names Chrome and Edge
 instead of only saying this browser cannot hear.
 
+### D20 — Two grades: knew it, or did not (2026-09-07)
+
+P1, the rest of it. The middle grade, "almost knew it", was a way of not
+deciding: it neither reset the run nor extended it, it had its own ladder of
+hours, and it was what a quiz or a typed answer earned for being right, so a
+pass by one activity was worth less than a pass by another. The method wants
+pass or fail, and the owner chose it without waiting for usage evidence: the
+app is pre-production and the grade was never going to be used well.
+
+What changed. A grade is `known` or `unknown`, on the reveal, on the override,
+on the keyboard (1 and 2), and in the write route, which now rejects
+`learning`. A right answer in the quiz or the writing activity is a pass. A
+word met for the first time is recorded as `unknown`, which is the truth of
+it, and comes back three cards later to be asked for real, where it used to
+wait six; the session summary counts it as taught, not as a miss, so meeting
+a word is never reported as failing it. Rows written before this still say
+`learning` in the database; they are read as `unknown`, and no migration
+rewrites them.
+
+The deck filter, the setup counts and the learner stats lost their middle
+column with it.
+
 ## Proposed, not yet decided
-
-### P1 — Collapse the three grades into pass and fail
-
-The reset landed with D12, so what is left of P1 is only the shape of the
-grades. The method wants two, and ours are three. Worth deciding on evidence
-now that the log records which grade was chosen: if the middle one is rarely
-used, or used where a pass belongs, it should go.
 
 ### P3 — Cards carry more than two strings
 

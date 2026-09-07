@@ -248,7 +248,7 @@ function StudyPageInner() {
   // Read only by the setup screen, which is never on screen mid-session.
   const deckCounts = useMemo(() => {
     const counts = {} as Record<FilterMode, number>;
-    for (const filter of ['all', 'due', 'unknown', 'learning', 'known'] as FilterMode[]) {
+    for (const filter of ['all', 'due', 'unknown', 'known'] as FilterMode[]) {
       counts[filter] = filterWordIds(wordIds, progress.byWord, filter, now).length;
     }
     return counts;
@@ -464,11 +464,12 @@ function StudyPageInner() {
   }, []);
 
   /**
-   * A word has been met. It enters the schedule as something being learned
-   * rather than something answered: there was no question to get right.
+   * A word has been met. It enters the schedule as not yet known, which is
+   * the truth of it: there was no question to get right, and the shortest
+   * ladder brings it back inside this sitting to be asked for real.
    */
   const handleTaught = useCallback(() => {
-    void grade('learning', 'speech');
+    void grade('unknown', 'speech');
   }, [grade]);
 
   /**
@@ -541,12 +542,9 @@ function StudyPageInner() {
       if (state.stage === 'prompt' && (e.key === ' ' || e.key === 'Enter')) {
         e.preventDefault();
         setSession((prev) => (prev ? revealAnswer(prev) : prev));
-      } else if (state.stage === 'reveal' && ['1', '2', '3'].includes(e.key)) {
+      } else if (state.stage === 'reveal' && ['1', '2'].includes(e.key)) {
         e.preventDefault();
-        const status = ({ '1': 'unknown', '2': 'learning', '3': 'known' } as const)[
-          e.key as '1' | '2' | '3'
-        ];
-        void state.grade(status);
+        void state.grade(e.key === '1' ? 'unknown' : 'known');
       } else if (state.stage === 'feedback' && (e.key === ' ' || e.key === 'Enter')) {
         e.preventDefault();
         setSession((prev) => (prev ? advance(prev) : prev));
@@ -632,13 +630,13 @@ function StudyPageInner() {
           key={card.id}
           card={card}
           pool={session.cards.map((c) => c.answer)}
-          onAnswer={(correct) => void grade(correct ? 'learning' : 'unknown', 'quiz')}
+          onAnswer={(correct) => void grade(correct ? 'known' : 'unknown', 'quiz')}
         />
       ) : asking && activity === 'writing' && card ? (
         <WritingMode
           key={card.id}
           card={card}
-          onAnswer={(correct) => void grade(correct ? 'learning' : 'unknown', 'writing')}
+          onAnswer={(correct) => void grade(correct ? 'known' : 'unknown', 'writing')}
         />
       ) : card ? (
         <GuidedCard
@@ -678,7 +676,7 @@ function TopBar({
   stats,
 }: {
   onBack: () => void;
-  stats: { known: number; learning: number; unknown: number };
+  stats: { known: number; unknown: number };
 }) {
   return (
     <div className="border-b border-slate-800">
@@ -691,7 +689,6 @@ function TopBar({
         </button>
         <div className="flex gap-3 text-xs text-slate-500">
           <span>{t.statKnown(stats.known)}</span>
-          <span>{t.statLearning(stats.learning)}</span>
           <span>{t.statRemaining(stats.unknown)}</span>
         </div>
       </div>

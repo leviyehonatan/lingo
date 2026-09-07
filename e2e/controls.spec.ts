@@ -123,8 +123,8 @@ test('a word met this round is asked with the start of its answer available', as
   await page.goto(STUDY_URL);
   await page.locator('[data-session-start]').click();
 
-  // Meet the five, reaching the questions.
-  for (let i = 0; i < 5; i++) {
+  // Meet three, and the first is back as a question.
+  for (let i = 0; i < 3; i++) {
     await page.locator('[data-teach-got]').click();
     await page.locator('[data-session-next]').click();
   }

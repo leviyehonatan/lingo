@@ -127,9 +127,6 @@ Honest gap list, so nobody assumes the app already implements the above.
 - **We have no sound-first stage at all.** No minimal-pair trainer, no recordings,
   no articulation help. The app currently starts where the book says to start
   second.
-- **Grading is a three-way status rather than pass or fail.** A miss now does
-  send the word back to the shortest interval; what remains is that there are
-  three grades where the method wants two.
 - **Words are ordered thematically by topic**, which is the interference pattern
   the book warns about, and there is no frequency ordering anywhere. Within a
   sitting the order is now due-first rather than arbitrary, but the pool a topic
@@ -147,7 +144,8 @@ accepts a fragment. The study screen is a guided session that states its task at
 every step, asks the learner to answer aloud, shows what each answer cost and
 when the word returns, and lets a wrong verdict be overturned without charging
 the word a second review. A word that is missed comes back inside the same
-sitting, and what the log records about a word now feeds its next interval.
+sitting, what the log records about a word now feeds its next interval, and
+grading is pass or fail.
 
 None of these are bugs against the current spec. They are the distance between
 what lingo is and what the method asks for, and they are the menu that

@@ -9,7 +9,7 @@ const ids = ['a', 'b', 'c', 'd', 'e'];
 
 const byWord: ProgressByWord = {
   a: { status: 'known', nextReview: NOW - 5 * MINUTE },
-  b: { status: 'learning', nextReview: NOW - 60 * MINUTE },
+  b: { status: 'unknown', nextReview: NOW - 60 * MINUTE },
   c: { status: 'known', nextReview: NOW + 60 * MINUTE },
   // 'd' and 'e' have never been met.
 };

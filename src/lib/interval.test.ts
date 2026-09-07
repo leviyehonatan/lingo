@@ -11,7 +11,7 @@ describe('humanizeInterval', () => {
     expect(humanizeInterval(10 * MINUTE)).toEqual({ value: 10, unit: 'minute' });
   });
 
-  it('describes the learning ladder in hours', () => {
+  it('describes a wait of hours in hours', () => {
     expect(humanizeInterval(HOUR)).toEqual({ value: 1, unit: 'hour' });
     expect(humanizeInterval(6 * HOUR)).toEqual({ value: 6, unit: 'hour' });
   });

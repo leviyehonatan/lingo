@@ -49,7 +49,8 @@ test('counts every showing, including the one that introduced the word', async (
 
   // The same word, asked for later in the sitting, is a second showing.
   await page.locator('[data-session-next]').click();
-  for (let i = 0; i < 4; i++) {
+  // Two more new words, and then the first one is back as a question.
+  for (let i = 0; i < 2; i++) {
     await page.locator('[data-teach-got]').click();
     await page.locator('[data-session-next]').click();
   }
