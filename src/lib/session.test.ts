@@ -149,7 +149,6 @@ describe('summarize', () => {
     expect(summarize(state)).toEqual({
       total: 2,
       known: 1,
-      learning: 0,
       unknown: 1,
       taught: 0,
       corrected: 1,
@@ -163,7 +162,6 @@ describe('summarize', () => {
     expect(summarize(startSession(cards))).toEqual({
       total: 0,
       known: 0,
-      learning: 0,
       unknown: 0,
       taught: 0,
       corrected: 0,
@@ -267,13 +265,15 @@ describe('taught words', () => {
       { id: 'b', prompt: 'nem', answer: 'לא', mode: 'review' },
     ];
     let state = startSession(mixed);
-    state = advance(recordAnswer(state, 'learning', schedule(600_000), NOW));
+    state = advance(recordAnswer(state, 'unknown', schedule(60_000), NOW));
     expect(summarize(state).taught).toBe(1);
 
     state = recordAnswer(state, 'known', schedule(DAY), NOW);
     const summary = summarize(state);
     expect(summary.taught).toBe(1);
     expect(summary.total).toBe(2);
+    // Meeting a word is not failing it.
+    expect(summary.unknown).toBe(0);
   });
 });
 
@@ -292,11 +292,6 @@ describe('a missed word comes back inside the sitting', () => {
     expect(state.cards.map((card) => card.id)).toEqual(['a', 'b', 'c', 'a', 'd', 'e']);
   });
 
-  it('puts a half-known word back further away', () => {
-    const state = recordAnswer(startSession(deck), 'learning', schedule(600_000), NOW);
-    expect(state.cards.map((card) => card.id)).toEqual(['a', 'b', 'c', 'd', 'e', 'a']);
-  });
-
   it('lets a recalled word go, leaving the sitting to the schedule', () => {
     const state = recordAnswer(startSession(deck), 'known', schedule(DAY), NOW);
     expect(state.cards.map((card) => card.id)).toEqual(['a', 'b', 'c', 'd', 'e']);
@@ -307,8 +302,8 @@ describe('a missed word comes back inside the sitting', () => {
       { id: 'a', prompt: 'igen', answer: 'כן', mode: 'teach' },
       ...deck.slice(1),
     ];
-    const state = recordAnswer(startSession(teaching), 'learning', schedule(600_000), NOW);
-    expect(state.cards.at(-1)).toEqual({
+    const state = recordAnswer(startSession(teaching), 'unknown', schedule(60_000), NOW);
+    expect(state.cards[3]).toEqual({
       id: 'a',
       prompt: 'igen',
       answer: 'כן',
@@ -318,7 +313,7 @@ describe('a missed word comes back inside the sitting', () => {
 
   it('clamps the gap to the end of a short sitting', () => {
     const short = [deck[0], deck[1]];
-    const state = recordAnswer(startSession(short), 'learning', schedule(600_000), NOW);
+    const state = recordAnswer(startSession(short), 'unknown', schedule(60_000), NOW);
     expect(state.cards.map((card) => card.id)).toEqual(['a', 'b', 'a']);
   });
 

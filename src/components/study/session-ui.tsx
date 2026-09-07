@@ -37,7 +37,7 @@ import { formatDelay, he as t } from '@/i18n/translations';
 export type Direction = 'forward' | 'reverse';
 export type Activity = 'cards' | 'quiz' | 'writing';
 
-const DECKS: readonly FilterMode[] = ['due', 'unknown', 'learning', 'known', 'all'];
+const DECKS: readonly FilterMode[] = ['due', 'unknown', 'known', 'all'];
 
 /**
  * How many times a card listens before it stops asking. Hands-free has to end
@@ -53,7 +53,6 @@ const RETRY_DELAY_MS = 1200;
 const DECK_LABELS: Record<FilterMode, string> = {
   due: t.filterDue,
   unknown: t.filterUnknown,
-  learning: t.filterLearning,
   known: t.filterKnown,
   all: t.filterAll,
 };
@@ -66,14 +65,12 @@ const ACTIVITIES: readonly { id: Activity; label: string; hint: string }[] = [
 
 const VERDICT: Record<WordStatus, { label: string; tone: string }> = {
   known: { label: t.verdictKnown, tone: 'text-emerald-300' },
-  learning: { label: t.verdictLearning, tone: 'text-amber-300' },
   unknown: { label: t.verdictUnknown, tone: 'text-red-300' },
 };
 
 const GRADES: readonly { status: WordStatus; label: string; key: string; tone: string }[] = [
   { status: 'unknown', label: t.dontKnow, key: '1', tone: 'bg-red-900/30 text-red-300 hover:bg-red-900/60' },
-  { status: 'learning', label: t.learning, key: '2', tone: 'bg-amber-900/30 text-amber-300 hover:bg-amber-900/60' },
-  { status: 'known', label: t.know, key: '3', tone: 'bg-emerald-900/30 text-emerald-300 hover:bg-emerald-900/60' },
+  { status: 'known', label: t.know, key: '2', tone: 'bg-emerald-900/30 text-emerald-300 hover:bg-emerald-900/60' },
 ];
 
 /** Direction decides which language is on the prompt side of every card. */
@@ -933,7 +930,7 @@ export function GuidedCard({
       )}
 
       {stage === 'reveal' && (
-        <div className="mt-6 grid gap-2 sm:grid-cols-3">
+        <div className="mt-6 grid gap-2 sm:grid-cols-2">
           {GRADES.map((grade) => (
             <button
               key={grade.status}
@@ -1210,7 +1207,7 @@ export function SessionSummaryScreen({
         <>
           <dl className="mt-6 grid grid-cols-3 gap-3 text-center">
             <Tally tone="text-emerald-300" label={t.know} value={summary.known} attr="known" />
-            <Tally tone="text-amber-300" label={t.learning} value={summary.learning} attr="learning" />
+            <Tally tone="text-indigo-300" label={t.summaryTaught} value={summary.taught} attr="taught" />
             <Tally tone="text-red-300" label={t.dontKnow} value={summary.unknown} attr="unknown" />
           </dl>
           <p data-summary-spoken className="mt-4 text-center text-xs text-slate-500">

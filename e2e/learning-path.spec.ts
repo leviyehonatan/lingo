@@ -54,14 +54,15 @@ test('a word met this sitting comes back as a question before it ends', async ({
   await page.locator('[data-session-start]').click();
   const taught = (await page.locator('[data-card-prompt]').innerText()).trim();
 
-  // Meeting it puts it on the schedule as something being learned. It is not
-  // a grade, so there is nothing to correct and nothing calling it "almost".
+  // Meeting it puts it on the schedule as not yet known, which is the truth
+  // of it. It is not a grade, so there is nothing to correct and nothing
+  // calling it a miss.
   await page.locator('[data-teach-got]').click();
   await expect(page.locator('[data-introduced]')).toHaveText('נוסף למילים שלכם');
   await expect(page.locator('[data-verdict]')).toHaveCount(0);
   await expect(page.locator('[data-override="known"]')).toHaveCount(0);
-  await expect(page.locator('[data-verdict-interval]')).toHaveText('חוזרת בעוד 10 דקות');
-  await expect.poll(async () => (await progressRows(page))[0]?.status).toBe('learning');
+  await expect(page.locator('[data-verdict-interval]')).toHaveText('חוזרת בעוד דקה');
+  await expect.poll(async () => (await progressRows(page))[0]?.status).toBe('unknown');
 
   // Progress is counted in words, so putting the word back into the queue does
   // not move the number: it is not finished with until it has been asked.
@@ -69,7 +70,8 @@ test('a word met this sitting comes back as a question before it ends', async ({
   await expect(page.locator('[data-introduced-pair]')).toBeVisible();
 
   await page.locator('[data-session-next]').click();
-  for (let i = 0; i < 4; i++) {
+  // Two more new words, and then the first one is back as a question.
+  for (let i = 0; i < 2; i++) {
     await page.locator('[data-teach-got]').click();
     await page.locator('[data-session-next]').click();
   }
@@ -200,7 +202,8 @@ test('says which language it wants, on both sides of every card', async ({ page 
   // Meeting it, then reaching the question, which names the language wanted.
   await page.locator('[data-teach-got]').click();
   await page.locator('[data-session-next]').click();
-  for (let i = 0; i < 4; i++) {
+  // Two more new words, and then the first one is back as a question.
+  for (let i = 0; i < 2; i++) {
     await page.locator('[data-teach-got]').click();
     await page.locator('[data-session-next]').click();
   }
@@ -221,7 +224,8 @@ test('asks in Hungarian when the direction is reversed', async ({ page }) => {
 
   await page.locator('[data-teach-got]').click();
   await page.locator('[data-session-next]').click();
-  for (let i = 0; i < 4; i++) {
+  // Two more new words, and then the first one is back as a question.
+  for (let i = 0; i < 2; i++) {
     await page.locator('[data-teach-got]').click();
     await page.locator('[data-session-next]').click();
   }

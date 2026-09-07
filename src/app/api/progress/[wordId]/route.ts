@@ -52,7 +52,7 @@ export async function PUT(
   const status = (body as { status?: unknown } | null)?.status;
   if (!isWordStatus(status)) {
     return NextResponse.json(
-      { error: 'status must be one of known, learning, unknown' },
+      { error: 'status must be one of known, unknown' },
       { status: 400 }
     );
   }

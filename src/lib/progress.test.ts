@@ -9,19 +9,16 @@ const NOW = 1_700_000_000_000;
 describe('reviewInterval', () => {
   it('starts each status on its first rung', () => {
     expect(reviewInterval('unknown', 1)).toBe(MINUTE);
-    expect(reviewInterval('learning', 1)).toBe(10 * MINUTE);
     expect(reviewInterval('known', 1)).toBe(DAY);
   });
 
   it('climbs the ladder as the review count grows', () => {
     expect(reviewInterval('known', 2)).toBe(3 * DAY);
     expect(reviewInterval('known', 3)).toBe(7 * DAY);
-    expect(reviewInterval('learning', 2)).toBe(HOUR);
-    expect(reviewInterval('learning', 3)).toBe(6 * HOUR);
   });
 
   it('never decreases as the review count grows', () => {
-    for (const status of ['known', 'unknown', 'learning'] as const) {
+    for (const status of ['known', 'unknown'] as const) {
       let previous = 0;
       for (let count = 1; count <= 12; count++) {
         const interval = reviewInterval(status, count);
@@ -42,10 +39,6 @@ describe('reviewInterval', () => {
     expect(reviewInterval('known', -5)).toBe(DAY);
   });
 
-  it('schedules a known word further out than a learning or unknown one', () => {
-    expect(reviewInterval('known', 1)).toBeGreaterThan(reviewInterval('learning', 1));
-    expect(reviewInterval('learning', 1)).toBeGreaterThan(reviewInterval('unknown', 1));
-  });
 });
 
 describe('computeNextReview', () => {
@@ -55,7 +48,7 @@ describe('computeNextReview', () => {
   });
 
   it('is always in the future', () => {
-    for (const status of ['known', 'unknown', 'learning'] as const) {
+    for (const status of ['known', 'unknown'] as const) {
       expect(computeNextReview(status, 1, NOW)).toBeGreaterThan(NOW);
     }
   });
@@ -79,7 +72,8 @@ describe('isDue', () => {
 describe('isWordStatus', () => {
   it('accepts the three known statuses', () => {
     expect(isWordStatus('known')).toBe(true);
-    expect(isWordStatus('learning')).toBe(true);
+    // The middle grade is gone (D20); a stale client sending it is rejected.
+    expect(isWordStatus('learning')).toBe(false);
     expect(isWordStatus('unknown')).toBe(true);
   });
 
@@ -112,12 +106,6 @@ describe('nextStreak', () => {
   it('ends the run on a miss, whatever the history', () => {
     expect(nextStreak(9, 'unknown')).toBe(0);
     expect(nextStreak(0, 'unknown')).toBe(0);
-  });
-
-  it('holds position for a half recall', () => {
-    expect(nextStreak(3, 'learning')).toBe(3);
-    // A word being met for the first time still starts its ladder.
-    expect(nextStreak(0, 'learning')).toBe(1);
   });
 
   it('ignores a nonsensical stored streak', () => {
@@ -159,7 +147,6 @@ describe('difficultyFactor', () => {
 
   it('reads nothing into a quick answer that was not a recall', () => {
     expect(difficultyFactor('unknown', { latencyMs: 900 })).toBe(1);
-    expect(difficultyFactor('learning', { latencyMs: 900 })).toBe(1);
   });
 
   it('ignores a missing or nonsensical timing', () => {

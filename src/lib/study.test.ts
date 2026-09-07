@@ -13,7 +13,7 @@ const ids = ['a', 'b', 'c', 'd'];
 
 const byWord: ProgressByWord = {
   a: { status: 'known', nextReview: NOW + 1000 },
-  b: { status: 'learning', nextReview: NOW - 1000 },
+  b: { status: 'unknown', nextReview: NOW - 1000 },
   c: { status: 'unknown', nextReview: NOW + 1000 },
   // 'd' has never been reviewed.
 };
@@ -43,7 +43,6 @@ describe('filterWordIds', () => {
 
   it('matches recorded statuses exactly', () => {
     expect(filterWordIds(ids, byWord, 'known', NOW)).toEqual(['a']);
-    expect(filterWordIds(ids, byWord, 'learning', NOW)).toEqual(['b']);
   });
 
   it('preserves the original word order', () => {
@@ -53,25 +52,17 @@ describe('filterWordIds', () => {
 
 describe('computeStats', () => {
   it('counts a due word as unknown whatever its last status was', () => {
-    expect(computeStats(ids, byWord, NOW)).toEqual({ known: 1, learning: 0, unknown: 3 });
+    expect(computeStats(ids, byWord, NOW)).toEqual({ known: 1, unknown: 3 });
   });
 
-  it('counts a scheduled learning word as learning', () => {
-    const scheduled: ProgressByWord = { b: { status: 'learning', nextReview: NOW + 5 } };
-    expect(computeStats(['b'], scheduled, NOW)).toEqual({
-      known: 0,
-      learning: 1,
-      unknown: 0,
-    });
-  });
 
   it('counts every word exactly once', () => {
-    const { known, learning, unknown } = computeStats(ids, byWord, NOW);
-    expect(known + learning + unknown).toBe(ids.length);
+    const { known, unknown } = computeStats(ids, byWord, NOW);
+    expect(known + unknown).toBe(ids.length);
   });
 
   it('reports zeroes for an empty topic', () => {
-    expect(computeStats([], byWord, NOW)).toEqual({ known: 0, learning: 0, unknown: 0 });
+    expect(computeStats([], byWord, NOW)).toEqual({ known: 0, unknown: 0 });
   });
 });
 

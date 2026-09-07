@@ -24,7 +24,6 @@ export interface LearnerStats {
   /** Words met at least once. */
   met: number;
   known: number;
-  learning: number;
   /** Words met, then forgotten: the ones that are not sticking. */
   shaky: number;
   /** Answers given in the window, excluding introductions and corrections. */
@@ -84,7 +83,6 @@ export function summarize(
   return {
     met: standings.length,
     known: standings.filter((word) => word.status === 'known').length,
-    learning: standings.filter((word) => word.status === 'learning').length,
     shaky: standings.filter((word) => word.lapses > 0).length,
     reviews: recent.length,
     accuracy: recent.length === 0 ? null : recalled / recent.length,

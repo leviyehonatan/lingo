@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { summarize, type ReviewRecord, type WordStanding } from '@/lib/stats';
-import type { WordStatus } from '@/lib/progress';
+import { readStatus } from '@/lib/progress';
 
 export const runtime = 'nodejs';
 
@@ -44,13 +44,13 @@ export async function GET() {
   ]);
 
   const standings: WordStanding[] = rows.map((row) => ({
-    status: row.status as WordStatus,
+    status: readStatus(row.status),
     seenCount: row.seenCount,
     lapses: row.lapses,
   }));
 
   const records: ReviewRecord[] = events.map((event) => ({
-    status: event.status as WordStatus,
+    status: readStatus(event.status),
     mode: event.mode === 'teach' ? 'teach' : 'review',
     source: event.source,
     corrected: event.corrected,

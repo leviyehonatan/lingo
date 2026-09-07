@@ -5,11 +5,15 @@
  * client sends a status, the server answers with `nextReview`.
  */
 
-export type WordStatus = 'known' | 'unknown' | 'learning';
+/**
+ * Two grades, not three. The method wants pass or fail, and the middle grade
+ * we had ("almost knew it") was a way of not deciding: it neither reset the
+ * run nor extended it. See D20 in docs/learning/decisions.md.
+ */
+export type WordStatus = 'known' | 'unknown';
 
 const MINUTE = 60 * 1000;
-const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
+const DAY = 24 * 60 * MINUTE;
 
 /**
  * Interval ladder in milliseconds, indexed by the current run of successes.
@@ -23,13 +27,19 @@ const DAY = 24 * HOUR;
 const LADDERS: Record<WordStatus, readonly number[]> = {
   // Wrong or not yet learned: come back within the same session.
   unknown: [MINUTE, 2 * MINUTE, 5 * MINUTE, 10 * MINUTE],
-  // Partly known: hours, then a day or two.
-  learning: [10 * MINUTE, HOUR, 6 * HOUR, DAY, 2 * DAY],
   // Known: the classic expanding schedule.
   known: [DAY, 3 * DAY, 7 * DAY, 14 * DAY, 30 * DAY, 90 * DAY],
 };
 
-export const VALID_STATUSES: readonly WordStatus[] = ['known', 'unknown', 'learning'];
+export const VALID_STATUSES: readonly WordStatus[] = ['known', 'unknown'];
+
+/**
+ * Rows written before D20 may still say `learning`. Read them as not known:
+ * the word was, by the learner's own account, not recalled.
+ */
+export function readStatus(stored: string): WordStatus {
+  return stored === 'known' ? 'known' : 'unknown';
+}
 
 export function isWordStatus(value: unknown): value is WordStatus {
   return typeof value === 'string' && (VALID_STATUSES as readonly string[]).includes(value);
@@ -104,14 +114,11 @@ export function reviewInterval(
  * The streak after an answer.
  *
  * A recall extends the run. A miss ends it, which is what sends the word back
- * to the bottom of its ladder. A half-recall holds position: the learner did
- * not fail, but they did not earn a longer wait either.
+ * to the bottom of its ladder.
  */
 export function nextStreak(previous: number, status: WordStatus): number {
   const held = Math.max(0, Math.floor(previous));
-  if (status === 'known') return held + 1;
-  if (status === 'unknown') return 0;
-  return Math.max(held, 1);
+  return status === 'known' ? held + 1 : 0;
 }
 
 /**

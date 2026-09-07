@@ -51,6 +51,7 @@ describe('isLapse', () => {
   });
 
   it('does not count a word that was never known', () => {
+    // A stored middle grade from before D20 was never a recall.
     expect(isLapse('learning', 'unknown')).toBe(false);
     expect(isLapse(undefined, 'unknown')).toBe(false);
   });

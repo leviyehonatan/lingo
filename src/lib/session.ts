@@ -30,7 +30,6 @@ export const REINSERT_GAP: Record<WordStatus, number | null> = {
   // Missed: bring it back soon, while the answer is still fresh.
   unknown: 3,
   // Half known, or just met: far enough that it has to be recalled again.
-  learning: 6,
   // Recalled: the schedule takes it from here.
   known: null,
 };
@@ -312,7 +311,6 @@ export interface SessionSummary {
   /** Words met for the first time in this sitting. */
   taught: number;
   known: number;
-  learning: number;
   unknown: number;
   corrected: number;
   /** Cards whose meaning the learner said out loud and the grader accepted. */
@@ -330,6 +328,8 @@ export interface SessionSummary {
 /**
  * What the learner did, counted once per card. A card answered twice, because
  * the verdict was overturned, still counts once and counts as its final grade.
+ * A word met for the first time is counted as taught, not as a miss: there was
+ * no question to get wrong.
  */
 export function summarize(state: SessionState): SessionSummary {
   const taught = new Set(
@@ -339,7 +339,6 @@ export function summarize(state: SessionState): SessionSummary {
     total: state.answers.length,
     taught: state.answers.filter((answer) => taught.has(answer.cardId)).length,
     known: 0,
-    learning: 0,
     unknown: 0,
     corrected: 0,
     recalledAloud: 0,
@@ -355,7 +354,7 @@ export function summarize(state: SessionState): SessionSummary {
   summary.recalledAloud = recalled.size;
   summary.pronounced = pronounced.size;
   for (const answer of state.answers) {
-    summary[answer.status]++;
+    if (!taught.has(answer.cardId)) summary[answer.status]++;
     if (answer.corrected) summary.corrected++;
     if (answer.intervalMs !== null) {
       summary.soonestDelay =

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import type { ProgressData } from '@/lib/api-types';
-import type { WordStatus } from '@/lib/progress';
+import { readStatus } from '@/lib/progress';
 
 export const runtime = 'nodejs';
 
@@ -29,7 +29,7 @@ export async function GET() {
   const body: ProgressData = {
     progress: progress.map((p) => ({
       word_id: p.wordId,
-      status: p.status as WordStatus,
+      status: readStatus(p.status),
       last_reviewed: Number(p.lastReviewed),
       review_count: p.reviewCount,
       next_review: Number(p.nextReview),
