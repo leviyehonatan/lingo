@@ -124,9 +124,10 @@ Honest gap list, so nobody assumes the app already implements the above.
   the Hungarian aloud and writes how it sounds (D21), so the sound is there,
   but there is no image and no personal hook. Images are deliberately not
   coming; see D18 in `decisions.md`.
-- **We have no sound-first stage at all.** No minimal-pair trainer, no recordings,
-  no articulation help. The app currently starts where the book says to start
-  second.
+- **The sound-first stage exists but is thin.** D26 added a minimal-pair
+  trainer with real recordings, covering vowel length, ö/ü and s/sz — seventeen
+  pairs. There is still no articulation help, and nothing tracks whether a
+  learner has actually passed the contrasts before meeting words (P11).
 - **Word order now follows the book**, which it did not before: the offered
   path is the whole vocabulary, commonest first (D22, D23), with lookalikes
   kept out of the same sitting (D16). Themed topics remain as a deliberate
