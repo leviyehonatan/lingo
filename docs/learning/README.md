@@ -33,18 +33,17 @@ carry, read it there and fold the conclusion back into these files.
 
 ## Where to start next (written 2026-09-07)
 
-Decisions D1–D25 are settled. Three proposals remain, and the first one is not
-code:
+Decisions D1–D26 are settled. Every proposal that was blocked on code is done;
+what remains needs a person.
 
 **P3 — the sentences need a native speaker.** D24 shipped the card and the
 first forty-five example sentences, written for this app and reviewed by
-nobody. Have them read before writing the other 880.
+nobody. Have them read before writing the other 880. This is the highest-value
+thing left, and it is not a coding task.
 
-**P4 — minimal-pairs ear trainer.** The method's first stage, which we skip
-entirely. Needs real recordings, not synthesis: one engine producing both
-members of a pair gives them the same idiosyncrasies, so the discrimination
-task is not the one the learner needs to pass. Wikimedia Commons has Hungarian
-pronunciation files (~13KB each, mostly CC BY-SA). Sourcing before code.
+**P11 — more pairs, and a reason to have passed.** D26's trainer has seventeen
+pairs and no notion of progress through them. Both are worth having; neither is
+worth guessing at before the trainer has been used.
 
 **P10 — a frequency source that knows about senses.** D25 declines to rank 126
 entries rather than rank them wrongly, which parks genuinely common words like
@@ -54,7 +53,9 @@ entries rather than rank them wrongly, which parks genuinely common words like
 adding vocabulary, re-run
 `npx tsx --tsconfig tsconfig.json scripts/build-frequency.ts` (it fetches the
 source list; pass a local path to work offline). The source list itself is
-deliberately not in this repo.
+deliberately not in this repo. The recordings in `public/audio/hu` are
+redistributed under the licences in `CREDITS.md` there; keep that file in step
+with `src/data/minimal-pairs.ts`.
 
 **Working state.** `DATABASE_URL=… npm run dev` signs you in by itself. The
 deploy never runs migrations: after merging a PR that adds one, run the

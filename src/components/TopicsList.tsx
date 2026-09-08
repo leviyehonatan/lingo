@@ -23,6 +23,22 @@ export function TopicsList({ levels, pairId }: { levels: Level[]; pairId: string
   return (
     <div className="space-y-3">
       {/*
+        The method's first stage, offered before the words: hearing a contrast
+        you cannot hear yet is not something more vocabulary fixes. It is a
+        link rather than a gate — we have 17 pairs, not a curriculum, and
+        blocking the app behind them would overstate what they cover.
+      */}
+      <a
+        href={`/${pairId}/listen`}
+        className="block rounded-xl border border-slate-700 bg-slate-800/60 px-5 py-3 transition hover:border-slate-500 hover:bg-slate-800"
+      >
+        <div className="font-medium">🎧 אימון אוזן</div>
+        <div className="mt-0.5 text-sm text-slate-400">
+          לשמוע את ההבדל בין מילים דומות
+        </div>
+      </a>
+
+      {/*
         The offered path. A themed list is the interference pattern the method
         warns about, and studying everything at once is what lets the session
         introduce the commonest words first rather than the commonest ones

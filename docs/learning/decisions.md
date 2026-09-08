@@ -519,6 +519,36 @@ listing wins, which keeps the easier level's copy. Two entries for two
 different meanings both survive — `nap` is the day and the sun, and each has to
 be learned.
 
+### D26 — The ear trainer, with real voices (2026-09-07)
+
+P4, and the last stage of the method we were skipping entirely. A learner who
+cannot *hear* the difference between two words cannot store them as two words,
+and spends every later review fighting a distinction their ears are throwing
+away. `/[pair]/listen` plays one word and asks which of two it was.
+
+Three contrasts, chosen for a Hebrew speaker: vowel length, which Hebrew does
+not mark; the front rounded vowels ö and ü, which Hebrew does not have; and
+s/sz, which Hungarian spelling swaps round from the Latin habit. Seventeen
+pairs, thirty-two recordings.
+
+The recordings are real, from Wikimedia Commons, kept in `public/audio/hu` with
+their authors and licences in `public/audio/hu/CREDITS.md` and in the data the
+trainer reads. Synthesis was never an option here (D18): one engine saying both
+halves gives them the same idiosyncrasies, so the discrimination task stops
+being the one the learner needs to pass.
+
+The same argument cut four pairs that had recordings: `hat`/`hát`, `üt`/`öt`,
+`tűz`/`tíz` and `öt`/`őt` turned out to be spoken by two different people, and
+two voices can be told apart without hearing the contrast at all. A test now
+enforces one speaker per pair. `ül`/`öl`/`ól`, from one speaker, replaced the
+ü contrast that loss would have cost us.
+
+It writes no progress and has no schedule. It is a stage a learner passes
+through, not a deck to review, and giving it a ladder would make it compete
+with the words for the same sitting. It is linked above the vocabulary on the
+pair page rather than gating it: seventeen pairs are not a curriculum, and
+blocking the app behind them would overstate what they cover.
+
 ## Proposed, not yet decided
 
 ### P3 — Example sentences for the rest of the vocabulary
@@ -536,13 +566,14 @@ the rank they deserve instead of waiting at the back. The Hungarian Webcorpus
 is the obvious candidate. Worth doing only if the missing 126 turn out to
 matter in use.
 
-### P4 — A minimal-pairs ear trainer before vocabulary
+### P11 — More pairs, and a reason to have passed
 
-The method's first stage, which we skip entirely. Synthesis is not a good enough
-source here: the same engine producing both members of a pair gives them the
-same idiosyncrasies, so the discrimination task is not the one the learner needs
-to pass. This is the one place real recordings are worth harvesting, and D18
-records where they are.
+D26 ships seventeen pairs and no notion of progress through them. Two open
+questions. More pairs would need more recordings — Commons has thousands of
+Hungarian words, and the constraint is finding minimal pairs where one speaker
+recorded both halves. And nothing yet notices that a learner keeps failing the
+length contrast, or tells them they are ready to move on. Both are worth
+having; neither is worth guessing at before the trainer has been used.
 
 
 
