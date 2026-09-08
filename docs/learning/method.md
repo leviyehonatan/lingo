@@ -127,11 +127,11 @@ Honest gap list, so nobody assumes the app already implements the above.
 - **We have no sound-first stage at all.** No minimal-pair trainer, no recordings,
   no articulation help. The app currently starts where the book says to start
   second.
-- **The topic is still the unit of study**, which is the interference pattern
-  the book warns about. Within a topic the interference is now handled — new
-  words are introduced commonest first (D22) and lookalikes are kept apart
-  (D16) — but which topic you study is still a themed choice, and nothing
-  points a beginner at the commonest words across the whole vocabulary. See P8.
+- **Word order now follows the book**, which it did not before: the offered
+  path is the whole vocabulary, commonest first (D22, D23), with lookalikes
+  kept out of the same sitting (D16). Themed topics remain as a deliberate
+  drill rather than the only way in. What is still missing is a *reason* the
+  set is 925 words: they are our own list, not the book's 625 picturable ones.
 - **The rungs are the same for everyone.** A word's interval now follows its
   own run of recalls and is bent by its own lapses and answer times (D15), but
   the ladder itself is fixed and nothing reads how a learner is doing overall,

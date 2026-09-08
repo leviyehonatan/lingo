@@ -15,8 +15,32 @@ interface Level {
 }
 
 export function TopicsList({ levels, pairId }: { levels: Level[]; pairId: string }) {
+  const totalWords = levels.reduce(
+    (sum, level) => sum + level.topics.reduce((n, topic) => n + topic.wordCount, 0),
+    0
+  );
+
   return (
     <div className="space-y-3">
+      {/*
+        The offered path. A themed list is the interference pattern the method
+        warns about, and studying everything at once is what lets the session
+        introduce the commonest words first rather than the commonest ones
+        inside one theme. The topics below stay, for drilling a set on purpose.
+      */}
+      <a
+        href={`/${pairId}/study/all`}
+        className="block rounded-xl border border-indigo-500/60 bg-indigo-600/15 px-5 py-4 transition hover:border-indigo-400 hover:bg-indigo-600/25"
+      >
+        <div className="text-lg font-semibold">▶️ המשך ללמוד</div>
+        <div className="mt-1 text-sm text-slate-300">
+          כל המילים יחד, מהשכיחות ביותר
+        </div>
+        <div className="mt-1 text-xs text-slate-400">{totalWords} מילים</div>
+      </a>
+
+      <div className="pt-2 text-xs text-slate-500">או תרגול נושא מסוים</div>
+
       {levels.map((level) => (
         <details key={level.id} className="rounded-xl border border-slate-700 bg-slate-800/50" open>
           <summary className="flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-slate-800 list-none">

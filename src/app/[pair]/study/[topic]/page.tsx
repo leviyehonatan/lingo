@@ -39,6 +39,7 @@ import type { ReviewSource } from '@/lib/telemetry';
 import type { LevelData, ProgressData } from '@/lib/api';
 import { computeStats, filterWordIds, shuffle } from '@/lib/study';
 import { modeFor, planSession } from '@/lib/plan';
+import { EVERYTHING, everythingTopic } from '@/lib/everything';
 import { similarity, normalize } from '@/lib/answer-match';
 import type { FilterMode } from '@/lib/study';
 import type { WordStatus } from '@/lib/progress';
@@ -225,6 +226,13 @@ function StudyPageInner() {
   }, [session]);
 
   const topic = useMemo(() => {
+    // `all` is not a topic in the data: it is every topic at once, which is
+    // what lets the frequency order pick the commonest words the learner has
+    // not met rather than the commonest ones inside one theme. See
+    // `src/lib/everything.ts`.
+    if (topicId === EVERYTHING) {
+      return levels.length > 0 ? everythingTopic(levels) : null;
+    }
     for (const level of levels) {
       const found = level.topics.find((tp) => tp.id === topicId);
       if (found) return found;
