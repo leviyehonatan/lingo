@@ -132,8 +132,8 @@ Honest gap list, so nobody assumes the app already implements the above.
   kept out of the same sitting (D16). Themed topics remain as a deliberate
   drill rather than the only way in. What is still missing is a *reason* the
   set is 925 words: they are our own list, not the book's 625 picturable ones.
-  The ranks are also blind to sense, so a homograph can be introduced far
-  earlier than its meaning deserves (P9).
+  Ranks that would have been blind to sense are now withheld rather than
+  guessed (D25), which leaves 126 words with no frequency at all.
 - **Words are met in a sentence only for the first forty.** D24 shows the word
   in use while teaching it, which is the method's step after single words; the
   other 885 still arrive as a bare pair of translations (P3).

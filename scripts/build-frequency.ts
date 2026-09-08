@@ -15,6 +15,22 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { levels } from '../src/data';
 
+/**
+ * Entries whose form is counted in the list, but mostly for a *different*
+ * word. The list counts wordforms, not senses, so these ranks are evidence
+ * about a word we are not teaching. We would rather claim nothing than claim
+ * something false, so they are left unranked and keep their curated position.
+ * This list is not exhaustive; add to it when you find another. See P9.
+ */
+const WRONG_SENSE: Record<string, string> = {
+  'a1-b-12': 'hát — ranked as the discourse particle "well…", not the back',
+  'a1-b-16': 'fog — ranked as the future auxiliary, not the tooth',
+  'a1-w-7': 'ég — ranked largely as the verb "burns", not the sky',
+  'b1-ab-8': 'ok — the form collides with unaccented spellings of ők',
+  'a1-n-7': 'hat — also the verb "to have an effect"',
+  'a2-j-30': 'keres — ranked mostly as "looks for", not "earns"',
+};
+
 const SOURCE_URL =
   'https://raw.githubusercontent.com/hermitdave/FrequencyWords/master/content/2018/hu/hu_50k.txt';
 
@@ -46,11 +62,36 @@ async function main() {
     if (!rankOfToken.has(word)) rankOfToken.set(word, rank);
   }
 
+  // A headword our data uses for two different meanings — `hét` for both
+  // "seven" and "week", `fél` for both "half" and "afraid" — cannot take one
+  // rank, because the count belongs to both at once and we cannot say in what
+  // proportion. Two entries with the *same* meaning are a duplicate, not an
+  // ambiguity, and still rank.
+  const meanings = new Map<string, Set<string>>();
+  for (const level of levels) {
+    for (const topic of level.topics) {
+      for (const word of topic.words) {
+        const key = word.hungarian.toLowerCase();
+        const seen = meanings.get(key) ?? new Set<string>();
+        seen.add(word.hebrew);
+        meanings.set(key, seen);
+      }
+    }
+  }
+
   const entries: [string, number][] = [];
   let unranked = 0;
   for (const level of levels) {
     for (const topic of level.topics) {
       for (const word of topic.words) {
+        if (WRONG_SENSE[word.id]) {
+          unranked += 1;
+          continue;
+        }
+        if ((meanings.get(word.hungarian.toLowerCase())?.size ?? 0) > 1) {
+          unranked += 1;
+          continue;
+        }
         const parts = tokens(word.hungarian);
         const ranks = parts.map((part) => rankOfToken.get(part));
         // A phrase is only as common as its rarest word: `nem értem` is no
@@ -73,7 +114,8 @@ async function main() {
  * Derived from the OpenSubtitles Hungarian frequency list in
  * hermitdave/FrequencyWords (CC BY-SA 4.0), which this repo does not vendor.
  * A multi-word entry takes its rarest word's rank. Words the list does not
- * cover are absent, and keep their curated order.
+ * cover are absent, and keep their curated order — as are words whose form is
+ * counted for a different sense than the one we teach (see P9).
  */
 
 export const frequencyRank: Readonly<Record<string, number>> = {

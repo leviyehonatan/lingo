@@ -18,18 +18,30 @@ import type { LevelData, TopicData } from './api-types';
 export const EVERYTHING = 'all';
 
 /**
- * Every word in the pair, in curated order. Duplicates are dropped by id: a
- * word that appears in two topics is one word, and meeting it twice in a
- * sitting would be a bug the learner sees.
+ * Every word in the pair, in curated order.
+ *
+ * Duplicates are dropped, by id and by content. Several words are listed twice
+ * under different ids — `boldog` under adjectives and again under feelings,
+ * `tanár` under jobs and again under school — and meeting the same word twice
+ * in one sitting is a bug the learner sees. A word listed twice for two
+ * *different* meanings is not a duplicate and both survive: `nap` is the day
+ * and the sun, and each has to be learned.
+ *
+ * The first listing wins, which keeps the easier level's copy: the duplicates
+ * run A1 before A2 before B1.
  */
 export function everythingTopic(levels: readonly LevelData[]): TopicData {
   const seen = new Set<string>();
+  const meanings = new Set<string>();
   const words = [];
   for (const level of levels) {
     for (const topic of level.topics) {
       for (const word of topic.words) {
         if (seen.has(word.id)) continue;
+        const meaning = `${word.hungarian.toLowerCase()}|${word.hebrew}`;
+        if (meanings.has(meaning)) continue;
         seen.add(word.id);
+        meanings.add(meaning);
         words.push(word);
       }
     }

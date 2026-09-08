@@ -66,4 +66,9 @@ export const examples: Readonly<Record<string, Example>> = {
   'a1-v-5': { hu: 'Mit akarsz mondani?', he: 'מה אתה רוצה לומר?' },
   'a1-t-9': { hu: 'Holnap dolgozom.', he: 'מחר אני עובד.' },
   'a1-v-16': { hu: 'Szeretnék magyarul beszélni.', he: 'הייתי רוצה לדבר הונגרית.' },
+  'a1-w-1': { hu: 'Nincs időm.', he: 'אין לי זמן.' },
+  'a1-v-6': { hu: 'Nem látok semmit.', he: 'אני לא רואה כלום.' },
+  'a1-adj-21': { hu: 'Ez a táska nehéz.', he: 'התיק הזה כבד.' },
+  'a1-f-18': { hu: 'A lányom öt éves.', he: 'הבת שלי בת חמש.' },
+  'a1-v-21': { hu: 'Nem tudok magyarul.', he: 'אני לא יודע הונגרית.' },
 };
